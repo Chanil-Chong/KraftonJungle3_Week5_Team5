@@ -1,5 +1,5 @@
 #pragma once
-#include <Platform/Windows/WindowsPlatformTime.h>
+#include "Platform/Windows/WindowsPlatformTime.h"
 
 struct TStatId
 {

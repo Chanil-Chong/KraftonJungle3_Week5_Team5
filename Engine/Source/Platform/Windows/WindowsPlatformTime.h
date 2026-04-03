@@ -1,7 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include <winnt.h>
-#include <profileapi.h>
+#include <Windows.h>
 
 class FWindowsPlatformTime
 {
