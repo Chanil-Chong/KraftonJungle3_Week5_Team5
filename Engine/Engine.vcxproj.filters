@@ -306,6 +306,9 @@
     <ClCompile Include="Source\World\World.cpp">
       <Filter>Source\World</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Scene\Spatial\Octree.cpp" />
+    <ClCompile Include="Source\Scene\Spatial\OctreeNode.cpp" />
+    <ClCompile Include="Source\Platform\Windows\WindowsPlatformTime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\CoreMinimal.h">
@@ -888,6 +891,11 @@
       <Filter>ThirdParty\nlohmann</Filter>
     </ClInclude>
     <ClInclude Include="Source\Object\ObjectIterator.h" />
+    <ClInclude Include="Source\Scene\Spatial\Octree.h" />
+    <ClInclude Include="Source\Scene\Spatial\OctreeNode.h" />
+    <ClInclude Include="Source\Scene\Spatial\SpatialUtils.h" />
+    <ClInclude Include="Source\Platform\Windows\WindowsPlatformTime.h" />
+    <ClInclude Include="Source\Debug\Stats.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

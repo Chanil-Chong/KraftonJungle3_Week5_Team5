@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Debug\Stats.h" />
+    <ClInclude Include="Source\Scene\Spatial\OctreeNode.h" />
+    <ClInclude Include="Source\Scene\Spatial\Octree.h" />
     <ClInclude Include="Source\CoreMinimal.h" />
     <ClInclude Include="Source\EngineAPI.h" />
     <ClInclude Include="Source\Actor\Actor.h" />
@@ -105,6 +108,7 @@
     <ClInclude Include="Source\Scene\RenderCollector.h" />
     <ClInclude Include="Source\Scene\Scene.h" />
     <ClInclude Include="Source\Scene\SceneContext.h" />
+    <ClInclude Include="Source\Scene\Spatial\SpatialUtils.h" />
     <ClInclude Include="Source\Scene\WorldTypes.h" />
     <ClInclude Include="Source\Serializer\Archive.h" />
     <ClInclude Include="Source\Serializer\SceneSerializer.h" />
@@ -213,8 +217,11 @@
     <ClInclude Include="ThirdParty\assimp\port\AndroidJNI\AndroidJNIIOSystem.h" />
     <ClInclude Include="ThirdParty\assimp\port\AndroidJNI\BundledAssetIOSystem.h" />
     <ClInclude Include="ThirdParty\nlohmann\json.hpp" />
+    <ClInclude Include="Source\Platform\Windows\WindowsPlatformTime.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Scene\Spatial\OctreeNode.cpp" />
+    <ClCompile Include="Source\Scene\Spatial\Octree.cpp" />
     <ClCompile Include="Source\Actor\Actor.cpp" />
     <ClCompile Include="Source\Actor\CubeActor.cpp" />
     <ClCompile Include="Source\Actor\PlaneActor.cpp" />
@@ -290,6 +297,7 @@
     <ClCompile Include="Source\Serializer\SceneSerializer.cpp" />
     <ClCompile Include="Source\Types\Name.cpp" />
     <ClCompile Include="Source\World\World.cpp" />
+    <ClCompile Include="Source\Platform\Windows\WindowsPlatformTime.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
