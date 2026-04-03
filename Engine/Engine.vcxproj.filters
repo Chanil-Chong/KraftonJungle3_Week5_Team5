@@ -306,6 +306,9 @@
     <ClCompile Include="Source\World\World.cpp">
       <Filter>Source\World</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Math\Ray.cpp">
+      <Filter>Source\Math</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\CoreMinimal.h">
@@ -888,6 +891,9 @@
       <Filter>ThirdParty\nlohmann</Filter>
     </ClInclude>
     <ClInclude Include="Source\Object\ObjectIterator.h" />
+    <ClInclude Include="Source\Math\Ray.h">
+      <Filter>Source\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -156,7 +156,9 @@
     <ClCompile Include="Source\Controller\EditorViewportController.cpp" />
     <ClCompile Include="Source\Gizmo\Gizmo.cpp" />
     <ClCompile Include="Source\Pawn\EditorCameraPawn.cpp" />
+    <ClCompile Include="Source\Picking\KDTree.cpp" />
     <ClCompile Include="Source\Picking\Picker.cpp" />
+    <ClCompile Include="Source\Picking\PickingUtils.cpp" />
     <ClCompile Include="Source\Slate\EditorViewportOverlay.cpp" />
     <ClCompile Include="Source\Slate\FpsStatWidget.cpp" />
     <ClCompile Include="Source\Slate\SlateApplication.cpp" />
@@ -206,7 +208,9 @@
     <ClInclude Include="Source\Controller\EditorViewportController.h" />
     <ClInclude Include="Source\Gizmo\Gizmo.h" />
     <ClInclude Include="Source\Pawn\EditorCameraPawn.h" />
+    <ClInclude Include="Source\Picking\KDTree.h" />
     <ClInclude Include="Source\Picking\Picker.h" />
+    <ClInclude Include="Source\Picking\PickingUtils.h" />
     <ClInclude Include="Source\Slate\EditorViewportOverlay.h" />
     <ClInclude Include="Source\Slate\FpsStatWidget.h" />
     <ClInclude Include="Source\Slate\SlateApplication.h" />

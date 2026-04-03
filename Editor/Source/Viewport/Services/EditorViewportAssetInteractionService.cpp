@@ -15,6 +15,7 @@
 #include <filesystem>
 #include "Component/StaticMeshComponent.h"
 #include "Asset/ObjManager.h"
+#include "Math/Ray.h"
 
 namespace
 {

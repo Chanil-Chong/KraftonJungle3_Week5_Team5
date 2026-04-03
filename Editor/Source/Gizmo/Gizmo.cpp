@@ -13,6 +13,7 @@
 #include "Scene/Scene.h"
 #include "Math/MathUtility.h"
 #include "Viewport/ViewportTypes.h"
+#include "Math/Ray.h"
 
 #include <algorithm>
 #include <cmath>

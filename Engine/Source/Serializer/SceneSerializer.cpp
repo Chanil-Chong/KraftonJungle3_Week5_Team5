@@ -336,6 +336,9 @@ bool FSceneSerializer::Load(UScene* Scene, const FString& FilePath, ID3D11Device
 
 		++ActorIndex;
 	}
+
+	//BuildKDTree(Scene);
+
 	if (Json.contains("NextUUID"))
 	{
 		uint32 Saved = Json["NextUUID"].get<uint32>();
