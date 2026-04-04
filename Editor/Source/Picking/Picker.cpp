@@ -251,11 +251,10 @@ AActor* FPicker::PickActor(UScene* Scene, const FViewportEntry* Entry, int32 Scr
 			continue;
 		}
 
-		// GameJam
-		/*if (PrimComp->IsA(UUUIDBillboardComponent::StaticClass()) || PrimComp->IsA(USkyComponent::StaticClass()))
+		if (PrimComp->IsA(UUUIDBillboardComponent::StaticClass()) || PrimComp->IsA(USkyComponent::StaticClass()))
 		{
 			continue;
-		}*/
+		}
 
 		const FBoxSphereBounds Bounds = PrimComp->GetWorldBounds();
 
@@ -270,8 +269,7 @@ AActor* FPicker::PickActor(UScene* Scene, const FViewportEntry* Entry, int32 Scr
 			continue;
 		}
 
-		// GameJam
-		/*if (PrimComp->IsA(USubUVComponent::StaticClass()) || PrimComp->IsA(UTextComponent::StaticClass()))
+		if (PrimComp->IsA(USubUVComponent::StaticClass()) || PrimComp->IsA(UTextComponent::StaticClass()))
 		{
 			if (SphereT < ClosestDistance)
 			{
@@ -279,7 +277,7 @@ AActor* FPicker::PickActor(UScene* Scene, const FViewportEntry* Entry, int32 Scr
 				ClosestActor = Actor;
 			}
 			continue;
-		}*/
+		}
 
 		const FVector BoxMin = Bounds.Center - Bounds.BoxExtent;
 		const FVector BoxMax = Bounds.Center + Bounds.BoxExtent;

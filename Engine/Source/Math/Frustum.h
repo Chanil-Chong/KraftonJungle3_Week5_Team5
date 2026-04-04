@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include <DirectXMath.h>
+#include <cmath>
 
 struct FBoxSphereBounds;
 
@@ -10,10 +10,14 @@ struct FPlane4
 
 	void Normalize()
 	{
-		// XMPlaneNormalize: (A,B,C,D) / length(A,B,C) — replaces scalar sqrt
-		DirectX::XMVECTOR V = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(this));
-		V = DirectX::XMPlaneNormalize(V);
-		DirectX::XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(this), V);
+		const float Len = std::sqrt(A * A + B * B + C * C);
+		if (Len > 0.0f)
+		{
+			A /= Len;
+			B /= Len;
+			C /= Len;
+			D /= Len;
+		}
 	}
 
 	float DistanceTo(const FVector& Point) const

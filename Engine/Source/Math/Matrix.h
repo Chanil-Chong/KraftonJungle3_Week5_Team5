@@ -811,14 +811,16 @@ public:
 
 	static FMatrix Abs(const FMatrix& InMatrix) noexcept
 	{
-		// XMVectorAbs: per-component abs via DirectXMath (no raw SSE intrinsics)
-		FMatrix Result;
-		for (int i = 0; i < 4; ++i)
+		FMatrix Result = InMatrix;
+
+		for (int i = 0; i < 4; i++)
 		{
-			XMVector Row = DirectX::XMLoadFloat4(reinterpret_cast<const Float4*>(InMatrix.M[i]));
-			Row = DirectX::XMVectorAbs(Row);
-			DirectX::XMStoreFloat4(reinterpret_cast<Float4*>(Result.M[i]), Row);
+			for (int j = 0; j < 4; j++)
+			{
+				Result[i][j] = abs(Result[i][j]);
+			}
 		}
+
 		return Result;
 	}
 };
