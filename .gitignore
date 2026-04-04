@@ -450,3 +450,6 @@ Doxyfile
 !Assets/**/*.obj
 
 .codex/
+
+# Intel VTune Profiler
+Intel® VTune™ Profiler Results/
