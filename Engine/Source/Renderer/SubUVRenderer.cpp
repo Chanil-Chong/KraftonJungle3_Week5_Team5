@@ -63,10 +63,6 @@ bool FSubUVRenderer::Initialize(FRenderer* InRenderer, const std::wstring& Textu
 	SubUVMaterial->SetVertexShader(VS);
 	SubUVMaterial->SetPixelShader(PS);
 
-	auto MaterialTexture = std::make_shared<FMaterialTexture>();
-	MaterialTexture->SetResources(TextureSRV, SamplerState, false);
-	SubUVMaterial->SetMaterialTexture(MaterialTexture);
-
 	// 래스터라이저 설정 (컬링 방지)
 	FRasterizerStateOption rasterizerOption;
 	rasterizerOption.FillMode = D3D11_FILL_SOLID;
@@ -145,17 +141,11 @@ bool FSubUVRenderer::BuildSubUVMesh(const FVector2& Size, FRenderMesh& OutMesh) 
 }
 
 void FSubUVRenderer::UpdateAnimationParams(
-	FMaterial* TargetMaterial,
 	int32 Columns, int32 Rows, int32 TotalFrames,
 	int32 FirstFrame, int32 LastFrame,
-	float FPS, float ElapsedTime, bool bLoop) const
+	float FPS, float ElapsedTime, bool bLoop)
 {
-	(void)TotalFrames;
-
-	if (!TargetMaterial || Columns <= 0 || Rows <= 0)
-	{
-		return;
-	}
+	if (!SubUVMaterial || Columns <= 0 || Rows <= 0) return;
 
 	float FrameFloat = ElapsedTime * FPS;
 	int32 AnimationFrame = static_cast<int32>(FrameFloat);
@@ -196,14 +186,6 @@ void FSubUVRenderer::UpdateAnimationParams(
 	FVector2 CellSize(1.0f / static_cast<float>(Columns), 1.0f / static_cast<float>(Rows));
 	FVector2 UVOffset(static_cast<float>(Col) * CellSize.X, static_cast<float>(Row) * CellSize.Y);
 
-	TargetMaterial->SetParameterData("CellSize", &CellSize, 8);
-	TargetMaterial->SetParameterData("UVOffset", &UVOffset, 8);
-}
-
-void FSubUVRenderer::UpdateAnimationParams(
-	int32 Columns, int32 Rows, int32 TotalFrames,
-	int32 FirstFrame, int32 LastFrame,
-	float FPS, float ElapsedTime, bool bLoop)
-{
-	UpdateAnimationParams(SubUVMaterial.get(), Columns, Rows, TotalFrames, FirstFrame, LastFrame, FPS, ElapsedTime, bLoop);
+	SubUVMaterial->SetParameterData("CellSize", &CellSize, 8);
+	SubUVMaterial->SetParameterData("UVOffset", &UVOffset, 8);
 }

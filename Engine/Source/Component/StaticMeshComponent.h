@@ -5,7 +5,6 @@
 #include "Serializer/Archive.h"
 
 class UStaticMesh;
-class FPrimitiveSceneProxy;
 
 class ENGINE_API UStaticMeshComponent : public UMeshComponent
 {
@@ -15,7 +14,6 @@ public:
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
 	FRenderMesh* GetRenderMesh() const override;
 	UStaticMesh* GetStaticMesh() const { return StaticMesh; }
-	std::shared_ptr<FPrimitiveSceneProxy> CreateSceneProxy() const override;
 
 
 	// 현재는 일단 .obj파싱 용도로 사용 - 추후 직렬화?

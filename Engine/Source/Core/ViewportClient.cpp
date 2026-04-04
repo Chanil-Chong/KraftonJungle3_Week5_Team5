@@ -11,7 +11,6 @@
 #include "Renderer/Renderer.h"
 #include "Scene/Scene.h"
 #include "World/World.h"
-#include <utility>
 
 void IViewportClient::Attach(FEngine* Engine, FRenderer* Renderer)
 {
@@ -42,7 +41,6 @@ UWorld* IViewportClient::ResolveWorld(FEngine* Engine) const
 void IViewportClient::BuildRenderCommands(FEngine* Engine, UScene* Scene, const FFrustum& Frustum, const FShowFlags& Flags, const FVector& CameraPosition, FRenderCommandQueue& OutQueue)
 {
 	(void)Scene;
-	OutQueue.ShowFlags = Flags;
 
 	UWorld* World = ResolveWorld(Engine);
 	if (!World)
@@ -130,6 +128,6 @@ void FGameViewportClient::Render(FEngine* Engine, FRenderer* Renderer)
 	const FMatrix ViewInverse = Queue.ViewMatrix.GetInverse();
 	const FVector CameraPosition = ViewInverse.GetTranslation();
 	BuildRenderCommands(Engine, Scene, Frustum, FShowFlags{}, CameraPosition, Queue);
-	Renderer->SubmitCommands(std::move(Queue));
+	Renderer->SubmitCommands(Queue);
 	Renderer->ExecuteCommands();
 }

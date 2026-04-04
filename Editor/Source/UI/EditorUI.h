@@ -57,6 +57,4 @@ private:
 	bool bHasCentralDockRect = false;
 	FRenderer* CurrentRenderer = nullptr;
 	FDebugState DebugState;
-
-	ImGuiID DockID = 0;
 };

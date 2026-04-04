@@ -26,12 +26,14 @@ void FOutlinerWindow::Render(FEditorEngine* Engine)
 		return;
 	}
 
+
 	AActor* SelectedActor = Engine->GetSelectedActor();
 
 	ImGui::SeparatorText("Actors");
 
 	UScene* Scene = Engine->GetScene();
 	const TArray<AActor*>& Actors = Scene->GetActors();
+	
 
 	for (AActor* Actor : Actors)
 	{
@@ -44,20 +46,19 @@ void FOutlinerWindow::Render(FEditorEngine* Engine)
 		const bool bSelected = (Actor == SelectedActor);
 		ImGui::PushID(Actor);
 		bool bVisible = Actor->IsVisible();
-		//if (ImGui::Checkbox("##visible", &bVisible))
-		//{
-		//	Actor->SetVisible(bVisible);
-		//}
+		if (ImGui::Checkbox("##visible", &bVisible))
+		{
+			Actor->SetVisible(bVisible);
+		}
 		ImGui::SameLine();
 
-		if (ImGui::Selectable("##sel", bSelected))
+		if (ImGui::Selectable(Actor->GetName().c_str(), bSelected))
 		{
 			Engine->SetSelectedActor(Actor);
 		}
-		ImGui::TextUnformatted(Actor->GetName().c_str());
 		ImGui::PopID();
 	}
 
-
 	ImGui::End();
+
 }

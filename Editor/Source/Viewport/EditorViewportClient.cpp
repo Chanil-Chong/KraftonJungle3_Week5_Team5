@@ -33,7 +33,7 @@ void FEditorViewportClient::Attach(FEngine* Engine, FRenderer* Renderer)
 	}
 
 	EditorUI.Initialize(EditorEngine);
-	EditorUI.AttachToRenderer(Renderer);
+	//EditorUI.AttachToRenderer(Renderer); GameGem
 
 	BlitRenderer.Initialize(Renderer->GetDevice());
 

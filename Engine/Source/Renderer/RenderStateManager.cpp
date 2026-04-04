@@ -67,22 +67,7 @@ std::shared_ptr<FBlendState> FRenderStateManager::GetOrCreateBlendState(const FB
 	return state;
 }
 
-void FRenderStateManager::BindState(const std::shared_ptr<FRasterizerState>& InRS)
-{
-	BindState(InRS.get());
-}
-
-void FRenderStateManager::BindState(const std::shared_ptr<FDepthStencilState>& InDSS)
-{
-	BindState(InDSS.get());
-}
-
-void FRenderStateManager::BindState(const std::shared_ptr<FBlendState>& InBS)
-{
-	BindState(InBS.get());
-}
-
-void FRenderStateManager::BindState(FRasterizerState* InRS)
+void FRenderStateManager::BindState(std::shared_ptr<FRasterizerState> InRS)
 {
 	if (InRS != nullptr && CurrentRasterizerState != InRS)
 	{
@@ -91,7 +76,7 @@ void FRenderStateManager::BindState(FRasterizerState* InRS)
 	}
 }
 
-void FRenderStateManager::BindState(FDepthStencilState* InDSS)
+void FRenderStateManager::BindState(std::shared_ptr<FDepthStencilState> InDSS)
 {
 	if (InDSS != nullptr && CurrentDepthStencilState != InDSS)
 	{
@@ -100,7 +85,7 @@ void FRenderStateManager::BindState(FDepthStencilState* InDSS)
 	}
 }
 
-void FRenderStateManager::BindState(FBlendState* InBS)
+void FRenderStateManager::BindState(std::shared_ptr<FBlendState> InBS)
 {
 	if (InBS != nullptr && CurrentBlendState != InBS)
 	{
