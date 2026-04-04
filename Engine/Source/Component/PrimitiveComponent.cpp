@@ -134,20 +134,25 @@ FBoxSphereBounds UPrimitiveComponent::CalcBounds(const FMatrix& LocalToWorld) co
 
 	FVector Center = LocalToWorld.TransformPosition(LocalBound.Center);
 
-	FMatrix AbsM = FMatrix::Abs(LocalToWorld);
+	// Abs upper 3 rows of LocalToWorld via XMVectorAbs, then use
+	// XMVector3TransformNormal to replace the 9 scalar multiply-adds.
+	Float4 AR0, AR1, AR2;
+	DirectX::XMStoreFloat4(&AR0, DirectX::XMVectorAbs(DirectX::XMLoadFloat4(reinterpret_cast<const Float4*>(LocalToWorld.M[0]))));
+	DirectX::XMStoreFloat4(&AR1, DirectX::XMVectorAbs(DirectX::XMLoadFloat4(reinterpret_cast<const Float4*>(LocalToWorld.M[1]))));
+	DirectX::XMStoreFloat4(&AR2, DirectX::XMVectorAbs(DirectX::XMLoadFloat4(reinterpret_cast<const Float4*>(LocalToWorld.M[2]))));
 
-	FVector WorldBoxExtent;
-	WorldBoxExtent.X = AbsM.M[0][0] * LocalBound.BoxExtent.X
-		+ AbsM.M[1][0] * LocalBound.BoxExtent.Y
-		+ AbsM.M[2][0] * LocalBound.BoxExtent.Z;
-
-	WorldBoxExtent.Y = AbsM.M[0][1] * LocalBound.BoxExtent.X
-		+ AbsM.M[1][1] * LocalBound.BoxExtent.Y
-		+ AbsM.M[2][1] * LocalBound.BoxExtent.Z;
-
-	WorldBoxExtent.Z = AbsM.M[0][2] * LocalBound.BoxExtent.X
-		+ AbsM.M[1][2] * LocalBound.BoxExtent.Y
-		+ AbsM.M[2][2] * LocalBound.BoxExtent.Z;
+	const XMMatrix AbsXM(
+		AR0.x, AR0.y, AR0.z, AR0.w,
+		AR1.x, AR1.y, AR1.z, AR1.w,
+		AR2.x, AR2.y, AR2.z, AR2.w,
+		0.f,   0.f,   0.f,   1.f
+	);
+	Float3 ExtentOut;
+	DirectX::XMStoreFloat3(&ExtentOut, DirectX::XMVector3TransformNormal(
+		DirectX::XMVectorSet(LocalBound.BoxExtent.X, LocalBound.BoxExtent.Y, LocalBound.BoxExtent.Z, 0.f),
+		AbsXM
+	));
+	const FVector WorldBoxExtent(ExtentOut.x, ExtentOut.y, ExtentOut.z);
 
 	return { Center, WorldBoxExtent.Size(), WorldBoxExtent };
 }

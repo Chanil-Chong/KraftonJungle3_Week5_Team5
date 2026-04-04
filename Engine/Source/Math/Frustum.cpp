@@ -25,9 +25,15 @@ void FFrustum::ExtractFromVP(const FMatrix& VP)
 
 bool FFrustum::IsVisible(const FBoxSphereBounds& Sphere) const
 {
+	// XMPlaneDotCoord: dot(plane.xyz, point) + plane.w (= signed distance)
+	// Sphere is outside if distance < -Radius on any plane
+	const DirectX::XMVECTOR Center = DirectX::XMVectorSet(Sphere.Center.X, Sphere.Center.Y, Sphere.Center.Z, 1.0f);
+	const float NegRadius = -Sphere.Radius;
+
 	for (int32 i = 0; i < PlaneCount; ++i)
 	{
-		if (Planes[i].DistanceTo(Sphere.Center) < -Sphere.Radius)
+		const DirectX::XMVECTOR Plane = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(&Planes[i]));
+		if (DirectX::XMVectorGetX(DirectX::XMPlaneDotCoord(Plane, Center)) < NegRadius)
 		{
 			return false;
 		}
