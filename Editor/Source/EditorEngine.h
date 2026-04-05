@@ -62,6 +62,8 @@ protected:
 	FViewport* FindViewport(FViewportId Id);
 
 private:
+	void DrawSelectedBVH(FRenderer* Renderer);
+
 	// 프리뷰 씬/프리뷰 뷰포트 준비
 	bool InitEditorPreview();
 	// 에디터 콘솔 UI와 콘솔 변수 시스템 연결

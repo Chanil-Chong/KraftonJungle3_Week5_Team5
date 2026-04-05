@@ -48,6 +48,7 @@ public:
 	const TArray<std::shared_ptr<FMaterial>>& GetDefaultMaterials() const { return DefaultMaterials; }
 	void AddDefaultMaterial(const std::shared_ptr<FMaterial>& InMaterial) { DefaultMaterials.push_back(InMaterial); }
 	void BuildAccelerationStructureIfNeeded() const;
+	void VisitMeshBVHNodes(const FBVHNodeVisitor& Visitor) const;
 
 	FStaticMesh* GetRenderData(int32 LODIndex) const;
 	FStaticMesh* GetRenderDataForDistance(float Distance) const;

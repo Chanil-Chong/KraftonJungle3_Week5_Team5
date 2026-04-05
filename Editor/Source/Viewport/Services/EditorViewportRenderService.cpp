@@ -261,10 +261,10 @@ void FEditorViewportRenderService::RenderAll(
 
 		Renderer->SubmitCommands(std::move(Queue));
 		Renderer->ExecuteCommands();
-		// EditorEngine->FlushDebugDrawForViewport(Renderer, Entry.LocalState.ShowFlags, false); // 지금 안씀 GameJam
-		Renderer->EndScenePass(); // 깡통 GameJam
+		EditorEngine->FlushDebugDrawForViewport(Renderer, Entry.LocalState.ShowFlags, false);
+		Renderer->EndScenePass();
 	}
-	// EditorEngine->ClearDebugDrawForFrame(); // 지금 안씀 GameJam
+	EditorEngine->ClearDebugDrawForFrame();
 
 	Renderer->BindSwapChainRTV();
 	if (!bUseDirectSingleViewportPath)
