@@ -26,6 +26,41 @@ using FGUICallback = std::function<void()>;
 class FRenderer;
 using FPostRenderCallback = std::function<void(FRenderer*)>;
 
+struct ENGINE_API FRenderFrameStats
+{
+	uint64 FrameId = 0;
+
+	double BuildRenderFrameMs = 0.0;
+	double MeshUploadMs = 0.0;
+	double QueueExecutionMs = 0.0;
+	double OutlineMs = 0.0;
+	double ExecuteCommandsMs = 0.0;
+	double MaxExecuteCommandsMs = 0.0;
+	double GUIRenderMs = 0.0;
+	double PresentMs = 0.0;
+	double GUIPostPresentMs = 0.0;
+
+	uint32 ExecuteCommandsCalls = 0;
+	uint32 SubmittedCommandCount = 0;
+	uint32 OpaqueCommandCount = 0;
+	uint32 AlphaCommandCount = 0;
+	uint32 NoDepthCommandCount = 0;
+	uint32 UICommandCount = 0;
+	uint32 OutlineItemCount = 0;
+	uint32 MeshUploadCount = 0;
+
+	uint32 BufferCreateCount = 0;
+	uint32 TextureCreateCount = 0;
+	uint32 BufferMapCount = 0;
+	uint32 BufferUnmapCount = 0;
+
+	uint32 MaterialBindCount = 0;
+	uint32 MeshBindCount = 0;
+	uint32 TopologyBindCount = 0;
+	uint32 ObjectBindCount = 0;
+	uint32 DrawCallCount = 0;
+};
+
 /**
  * Direct3D 11 기반의 메인 렌더러다.
  * 렌더 커맨드 큐를 받아 GPU 상태를 갱신하고, 장면/오버레이/UI 패스를 순서대로 실행한다.
@@ -113,6 +148,7 @@ public:
 	/** 직전 프레임의 커맨드 개수를 반환해 다음 프레임 reserve 힌트로 사용한다. */
 	size_t GetPrevCommandCount() const { return PrevCommandCount; }
 	uint32 GetFrameDrawCallCount() const { return FrameDrawCallCount; }
+	const FRenderFrameStats& GetLastFrameStats() const;
 	std::unique_ptr<FRenderStateManager>& GetRenderStateManager() { return RenderStateManager; }
 	ID3D11Device* GetDevice() const { return Device; }
 	ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
@@ -128,6 +164,25 @@ public:
 
 	ID3D11ShaderResourceView* GetFolderIconSRV() const { return FolderIconSRV; }
 	ID3D11ShaderResourceView* GetFileIconSRV() const { return FileIconSRV; }
+
+	static void BeginProfilingFrame(uint64 FrameId);
+	static void FinalizeProfilingFrame(uint32 DrawCallCount);
+	static void RecordBuildRenderFrame(double InMilliseconds, const FSceneRenderFrame& Frame, uint32 InSubmittedCommandCount);
+	static void RecordMeshUploads(double InMilliseconds, uint32 InUploadCount);
+	static void RecordQueueExecution(double InMilliseconds);
+	static void RecordOutline(double InMilliseconds, uint32 InOutlineItemCount);
+	static void RecordExecuteCommands(double InMilliseconds);
+	static void RecordGUIRender(double InMilliseconds);
+	static void RecordPresent(double InMilliseconds);
+	static void RecordGUIPostPresent(double InMilliseconds);
+	static void RecordBufferCreate(uint32 Count = 1);
+	static void RecordTextureCreate(uint32 Count = 1);
+	static void RecordBufferMap(uint32 Count = 1);
+	static void RecordBufferUnmap(uint32 Count = 1);
+	static void RecordMaterialBind(uint32 Count = 1);
+	static void RecordMeshBind(uint32 Count = 1);
+	static void RecordTopologyBind(uint32 Count = 1);
+	static void RecordObjectBind(uint32 Count = 1);
 
 private:
 	/** 프레임/오브젝트 상수 버퍼를 셰이더 슬롯에 연결한다. */
@@ -232,6 +287,7 @@ private:
 
 	/** SubUV, Text 등 텍스처 샘플링이 필요한 패스에서 사용하는 기본 샘플러다. */
 	ID3D11SamplerState* NormalSampler = nullptr;
+	uint64 FrameCounter = 0;
 
 public:
 	FShaderManager ShaderManager;

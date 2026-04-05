@@ -2,6 +2,7 @@
 #include <algorithm>
 
 #include "Object/Class.h"
+#include "Renderer/Renderer.h"
 #include "Vertex.h"
 #include "Scene/MeshBVH.h"
 
@@ -32,6 +33,7 @@ bool FStaticMesh::CreateVertexAndIndexBuffer(ID3D11Device* Device)
 		printf("[FMeshData] Failed to create vertex buffer\n");
 		return false;
 	}
+	FRenderer::RecordBufferCreate();
 
 	// Index Buffer
 	D3D11_BUFFER_DESC IBDesc = {};
@@ -50,6 +52,7 @@ bool FStaticMesh::CreateVertexAndIndexBuffer(ID3D11Device* Device)
 		VertexBuffer = nullptr;
 		return false;
 	}
+	FRenderer::RecordBufferCreate();
 
 	return true;
 }
@@ -81,6 +84,7 @@ bool FDynamicMesh::CreateVertexAndIndexBuffer(ID3D11Device* Device)
 		printf("[FDynamicMesh] Failed to create vertex buffer\n");
 		return false;
 	}
+	FRenderer::RecordBufferCreate();
 
 	// 2. Index Buffer (DYNAMIC + CPU_ACCESS_WRITE)
 	D3D11_BUFFER_DESC IBDesc = {};
@@ -99,6 +103,7 @@ bool FDynamicMesh::CreateVertexAndIndexBuffer(ID3D11Device* Device)
 		Release();
 		return false;
 	}
+	FRenderer::RecordBufferCreate();
 
 	return true;
 }
@@ -121,15 +126,19 @@ bool FDynamicMesh::UpdateVertexAndIndexBuffer(ID3D11Device* Device, ID3D11Device
 	D3D11_MAPPED_SUBRESOURCE MappedVB;
 	if (SUCCEEDED(Context->Map(VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedVB)))
 	{
+		FRenderer::RecordBufferMap();
 		memcpy(MappedVB.pData, Vertices.data(), sizeof(FVertex) * Vertices.size());
 		Context->Unmap(VertexBuffer, 0);
+		FRenderer::RecordBufferUnmap();
 	}
 
 	D3D11_MAPPED_SUBRESOURCE MappedIB;
 	if (SUCCEEDED(Context->Map(IndexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedIB)))
 	{
+		FRenderer::RecordBufferMap();
 		memcpy(MappedIB.pData, Indices.data(), sizeof(uint32) * Indices.size());
 		Context->Unmap(IndexBuffer, 0);
+		FRenderer::RecordBufferUnmap();
 	}
 
 	bIsDirty = false;

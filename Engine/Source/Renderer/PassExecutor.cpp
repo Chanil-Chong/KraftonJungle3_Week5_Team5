@@ -1,6 +1,7 @@
 #include "Renderer/PassExecutor.h"
 
 #include <algorithm>
+#include <chrono>
 
 #include "Renderer/Material.h"
 #include "Renderer/ObjectUniformStream.h"
@@ -10,6 +11,8 @@
 
 namespace
 {
+	using FRenderClock = std::chrono::steady_clock;
+
 	constexpr ERenderPass GPassExecutionOrder[] =
 	{
 		ERenderPass::Opaque,
@@ -71,19 +74,30 @@ void FPassExecutor::Execute(const FSceneRenderFrame& Frame) const
 
 	if (!Frame.OutlineItems.empty())
 	{
+		const FRenderClock::time_point OutlineStart = FRenderClock::now();
 		Renderer->RenderOutlines(Frame.OutlineItems);
+		Renderer->RecordOutline(
+			std::chrono::duration<double, std::milli>(FRenderClock::now() - OutlineStart).count(),
+			static_cast<uint32>(Frame.OutlineItems.size()));
 	}
 }
 
 void FPassExecutor::UpdateUploadedMeshes(const FSceneRenderFrame& Frame) const
 {
+	const FRenderClock::time_point UploadStart = FRenderClock::now();
+	uint32 UploadCount = 0;
 	for (FRenderMesh* Mesh : Frame.MeshUploads)
 	{
 		if (Mesh)
 		{
+			++UploadCount;
 			Mesh->UpdateVertexAndIndexBuffer(Renderer->Device, Renderer->DeviceContext);
 		}
 	}
+
+	Renderer->RecordMeshUploads(
+		std::chrono::duration<double, std::milli>(FRenderClock::now() - UploadStart).count(),
+		UploadCount);
 }
 
 void FPassExecutor::ExecuteQueue(const TArray<FMeshDrawCommand>& InCommands) const
@@ -97,6 +111,7 @@ void FPassExecutor::ExecuteQueue(const TArray<FMeshDrawCommand>& InCommands) con
 	uint32 CurrentMaterialConstantBufferCount = 0;
 	FRenderMesh* CurrentMesh = nullptr;
 	D3D11_PRIMITIVE_TOPOLOGY CurrentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+	const FRenderClock::time_point QueueStart = FRenderClock::now();
 
 	for (const FMeshDrawCommand& Command : InCommands)
 	{
@@ -115,6 +130,7 @@ void FPassExecutor::ExecuteQueue(const TArray<FMeshDrawCommand>& InCommands) con
 		{
 			const uint32 PreviousMaterialConstantBufferCount = CurrentMaterialConstantBufferCount;
 			Material->Bind(Renderer->DeviceContext);
+			Renderer->RecordMaterialBind();
 			CurrentMaterialConstantBufferCount = static_cast<uint32>(Material->GetConstantBuffers().size());
 			ClearUnusedMaterialConstantBuffers(
 				Renderer->DeviceContext,
@@ -126,6 +142,7 @@ void FPassExecutor::ExecuteQueue(const TArray<FMeshDrawCommand>& InCommands) con
 		if (CurrentMesh != Command.RenderMesh)
 		{
 			Command.RenderMesh->Bind(Renderer->DeviceContext);
+			Renderer->RecordMeshBind();
 			CurrentMesh = Command.RenderMesh;
 		}
 
@@ -133,10 +150,12 @@ void FPassExecutor::ExecuteQueue(const TArray<FMeshDrawCommand>& InCommands) con
 		if (DesiredTopology != CurrentTopology)
 		{
 			Renderer->DeviceContext->IASetPrimitiveTopology(DesiredTopology);
+			Renderer->RecordTopologyBind();
 			CurrentTopology = DesiredTopology;
 		}
 
 		Renderer->ObjectUniformStream->BindAllocation(Command.ObjectUniformAllocation);
+		Renderer->RecordObjectBind();
 
 		if (!Command.RenderMesh->Indices.empty())
 		{
@@ -164,5 +183,8 @@ void FPassExecutor::ExecuteQueue(const TArray<FMeshDrawCommand>& InCommands) con
 			Renderer->DeviceContext->Draw(static_cast<UINT>(Command.RenderMesh->Vertices.size()), 0);
 		}
 	}
+
+	Renderer->RecordQueueExecution(
+		std::chrono::duration<double, std::milli>(FRenderClock::now() - QueueStart).count());
 }
 

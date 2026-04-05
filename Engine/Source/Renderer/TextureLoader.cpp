@@ -1,6 +1,7 @@
 #include "Renderer/TextureLoader.h"
 
 #include "Core/Paths.h"
+#include "Renderer/Renderer.h"
 #include <fstream>
 #include <vector>
 
@@ -70,6 +71,7 @@ bool FTextureLoader::CreateTextureFromSTB(ID3D11Device* Device, const std::files
 	{
 		return false;
 	}
+	FRenderer::RecordTextureCreate();
 
 	const HRESULT SRVHr = Device->CreateShaderResourceView(Texture, nullptr, OutSRV);
 	Texture->Release();

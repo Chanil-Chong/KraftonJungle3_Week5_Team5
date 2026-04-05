@@ -2,6 +2,7 @@
 
 #include "EditorViewportClient.h"
 #include "Core/Engine.h"
+#include "Renderer/Renderer.h"
 #include "Scene/Scene.h"
 
 namespace
@@ -62,6 +63,7 @@ void FViewport::EnsureResources(ID3D11Device* Device)
 		Release();
 		return;
 	}
+	FRenderer::RecordTextureCreate();
 
 	if (FAILED(Device->CreateRenderTargetView(RenderTargetTexture, nullptr, &RenderTargetView)))
 	{
@@ -90,6 +92,7 @@ void FViewport::EnsureResources(ID3D11Device* Device)
 		Release();
 		return;
 	}
+	FRenderer::RecordTextureCreate();
 
 	if (FAILED(Device->CreateDepthStencilView(DepthStencilTexture, nullptr, &DepthStencilView)))
 	{

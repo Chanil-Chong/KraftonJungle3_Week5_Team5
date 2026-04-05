@@ -13,6 +13,7 @@
 #include "SceneRenderer.h"
 #include <cassert>
 #include <algorithm>
+#include <chrono>
 
 #include "Asset/ObjManager.h"
 #include "Core/Engine.h"
@@ -23,6 +24,8 @@
 
 namespace
 {
+	using FRenderClock = std::chrono::steady_clock;
+
 	struct FOutlinePostConstantBuffer
 	{
 		FVector4 OutlineColor = FVector4(1.0f, 0.5f, 0.0f, 1.0f);
@@ -67,6 +70,14 @@ namespace
 		OutHeight = Desc.Height;
 		return true;
 	}
+
+	double MillisecondsSince(const FRenderClock::time_point& StartTime)
+	{
+		return std::chrono::duration<double, std::milli>(FRenderClock::now() - StartTime).count();
+	}
+
+	FRenderFrameStats GCurrentRenderFrameStats = {};
+	FRenderFrameStats GLastCompletedRenderFrameStats = {};
 }
 
 FRenderer::FRenderer(HWND InHwnd, int32 InWidth, int32 InHeight)
@@ -77,6 +88,113 @@ FRenderer::FRenderer(HWND InHwnd, int32 InWidth, int32 InHeight)
 FRenderer::~FRenderer()
 {
 	Release();
+}
+
+const FRenderFrameStats& FRenderer::GetLastFrameStats() const
+{
+	return GLastCompletedRenderFrameStats;
+}
+
+void FRenderer::BeginProfilingFrame(uint64 FrameId)
+{
+	GCurrentRenderFrameStats = {};
+	GCurrentRenderFrameStats.FrameId = FrameId;
+}
+
+void FRenderer::FinalizeProfilingFrame(uint32 DrawCallCount)
+{
+	GCurrentRenderFrameStats.DrawCallCount = DrawCallCount;
+	GLastCompletedRenderFrameStats = GCurrentRenderFrameStats;
+}
+
+void FRenderer::RecordBuildRenderFrame(double InMilliseconds, const FSceneRenderFrame& Frame, uint32 InSubmittedCommandCount)
+{
+	GCurrentRenderFrameStats.BuildRenderFrameMs += InMilliseconds;
+	GCurrentRenderFrameStats.SubmittedCommandCount += InSubmittedCommandCount;
+	GCurrentRenderFrameStats.OpaqueCommandCount += static_cast<uint32>(Frame.GetPassQueue(ERenderPass::Opaque).size());
+	GCurrentRenderFrameStats.AlphaCommandCount += static_cast<uint32>(Frame.GetPassQueue(ERenderPass::Alpha).size());
+	GCurrentRenderFrameStats.NoDepthCommandCount += static_cast<uint32>(Frame.GetPassQueue(ERenderPass::NoDepth).size());
+	GCurrentRenderFrameStats.UICommandCount += static_cast<uint32>(Frame.GetPassQueue(ERenderPass::UI).size());
+	GCurrentRenderFrameStats.OutlineItemCount += static_cast<uint32>(Frame.OutlineItems.size());
+}
+
+void FRenderer::RecordMeshUploads(double InMilliseconds, uint32 InUploadCount)
+{
+	GCurrentRenderFrameStats.MeshUploadMs += InMilliseconds;
+	GCurrentRenderFrameStats.MeshUploadCount += InUploadCount;
+}
+
+void FRenderer::RecordQueueExecution(double InMilliseconds)
+{
+	GCurrentRenderFrameStats.QueueExecutionMs += InMilliseconds;
+}
+
+void FRenderer::RecordOutline(double InMilliseconds, uint32 InOutlineItemCount)
+{
+	GCurrentRenderFrameStats.OutlineMs += InMilliseconds;
+	GCurrentRenderFrameStats.OutlineItemCount = (std::max)(GCurrentRenderFrameStats.OutlineItemCount, InOutlineItemCount);
+}
+
+void FRenderer::RecordExecuteCommands(double InMilliseconds)
+{
+	GCurrentRenderFrameStats.ExecuteCommandsMs += InMilliseconds;
+	GCurrentRenderFrameStats.MaxExecuteCommandsMs = (std::max)(GCurrentRenderFrameStats.MaxExecuteCommandsMs, InMilliseconds);
+	++GCurrentRenderFrameStats.ExecuteCommandsCalls;
+}
+
+void FRenderer::RecordGUIRender(double InMilliseconds)
+{
+	GCurrentRenderFrameStats.GUIRenderMs += InMilliseconds;
+}
+
+void FRenderer::RecordPresent(double InMilliseconds)
+{
+	GCurrentRenderFrameStats.PresentMs += InMilliseconds;
+}
+
+void FRenderer::RecordGUIPostPresent(double InMilliseconds)
+{
+	GCurrentRenderFrameStats.GUIPostPresentMs += InMilliseconds;
+}
+
+void FRenderer::RecordBufferCreate(uint32 Count)
+{
+	GCurrentRenderFrameStats.BufferCreateCount += Count;
+}
+
+void FRenderer::RecordTextureCreate(uint32 Count)
+{
+	GCurrentRenderFrameStats.TextureCreateCount += Count;
+}
+
+void FRenderer::RecordBufferMap(uint32 Count)
+{
+	GCurrentRenderFrameStats.BufferMapCount += Count;
+}
+
+void FRenderer::RecordBufferUnmap(uint32 Count)
+{
+	GCurrentRenderFrameStats.BufferUnmapCount += Count;
+}
+
+void FRenderer::RecordMaterialBind(uint32 Count)
+{
+	GCurrentRenderFrameStats.MaterialBindCount += Count;
+}
+
+void FRenderer::RecordMeshBind(uint32 Count)
+{
+	GCurrentRenderFrameStats.MeshBindCount += Count;
+}
+
+void FRenderer::RecordTopologyBind(uint32 Count)
+{
+	GCurrentRenderFrameStats.TopologyBindCount += Count;
+}
+
+void FRenderer::RecordObjectBind(uint32 Count)
+{
+	GCurrentRenderFrameStats.ObjectBindCount += Count;
 }
 
 void FRenderer::SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, const D3D11_VIEWPORT& InViewport)
@@ -232,6 +350,7 @@ bool FRenderer::CreateRenderTargetAndDepthStencil(int32 Width, int32 Height)
 	ID3D11Texture2D* DepthTex = nullptr;
 	Hr = Device->CreateTexture2D(&DepthDesc, nullptr, &DepthTex);
 	if (FAILED(Hr)) return false;
+	RecordTextureCreate();
 	
 	Hr = Device->CreateDepthStencilView(DepthTex, nullptr, &DepthStencilView);
 	DepthTex->Release();
@@ -341,6 +460,8 @@ void FRenderer::SetConstantBuffers()
 
 void FRenderer::BeginFrame()
 {
+	BeginProfilingFrame(++FrameCounter);
+
 	if (GUINewFrame) GUINewFrame();
 	FrameDrawCallCount = 0;
 
@@ -397,14 +518,28 @@ void FRenderer::EndFrame()
 		DeviceContext->RSSetViewports(1, &Viewport);
 	}
 
-	if (GUIRender) GUIRender();
+	if (GUIRender)
+	{
+		const FRenderClock::time_point GUIRenderStart = FRenderClock::now();
+		GUIRender();
+		RecordGUIRender(MillisecondsSince(GUIRenderStart));
+	}
 
 	UINT SyncInterval = bVSyncEnabled ? 1 : 0;
 	UINT PresentFlags = (!bVSyncEnabled && bAllowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
+	const FRenderClock::time_point PresentStart = FRenderClock::now();
 	HRESULT Hr = SwapChain->Present(SyncInterval, PresentFlags);
+	RecordPresent(MillisecondsSince(PresentStart));
 	if (Hr == DXGI_STATUS_OCCLUDED) bSwapChainOccluded = true;
 
-	if (GUIPostPresent) GUIPostPresent();
+	if (GUIPostPresent)
+	{
+		const FRenderClock::time_point GUIPostPresentStart = FRenderClock::now();
+		GUIPostPresent();
+		RecordGUIPostPresent(MillisecondsSince(GUIPostPresentStart));
+	}
+
+	FinalizeProfilingFrame(FrameDrawCallCount);
 }
 
 void FRenderer::SubmitCommands(const FRenderCommandQueue& Queue)
@@ -428,13 +563,17 @@ void FRenderer::ExecuteCommands()
 		return;
 	}
 
+	const FRenderClock::time_point ExecuteCommandsStart = FRenderClock::now();
+	const FRenderClock::time_point BuildRenderFrameStart = FRenderClock::now();
 	SceneRenderer->BuildRenderFrame(PendingCommandQueue, *CurrentRenderFrame);
+	RecordBuildRenderFrame(MillisecondsSince(BuildRenderFrameStart), *CurrentRenderFrame, static_cast<uint32>(PendingCommandQueue.Commands.size()));
 	ViewMatrix = CurrentRenderFrame->View.ViewMatrix;
 	ProjectionMatrix = CurrentRenderFrame->View.ProjectionMatrix;
 
 	SetConstantBuffers();
 	UpdateFrameConstantBuffer();
 	PassExecutor->Execute(*CurrentRenderFrame);
+	RecordExecuteCommands(MillisecondsSince(ExecuteCommandsStart));
 
 	if (PostRenderCallback) PostRenderCallback(this);
 
@@ -482,12 +621,20 @@ bool FRenderer::CreateConstantBuffers()
 
 	Desc.ByteWidth = sizeof(FFrameConstantBuffer);
 	if (FAILED(Device->CreateBuffer(&Desc, nullptr, &FrameConstantBuffer))) return false;
+	RecordBufferCreate();
 
 	Desc.ByteWidth = sizeof(FObjectConstantBuffer);
 	if (FAILED(Device->CreateBuffer(&Desc, nullptr, &ObjectConstantBuffer))) return false;
+	RecordBufferCreate();
 
 	Desc.ByteWidth = sizeof(FOutlinePostConstantBuffer);
-	return SUCCEEDED(Device->CreateBuffer(&Desc, nullptr, &OutlinePostConstantBuffer));
+	if (FAILED(Device->CreateBuffer(&Desc, nullptr, &OutlinePostConstantBuffer)))
+	{
+		return false;
+	}
+
+	RecordBufferCreate();
+	return true;
 }
 
 bool FRenderer::CreateSamplers()
@@ -540,6 +687,7 @@ bool FRenderer::EnsureOutlineMaskResources(uint32 Width, uint32 Height)
 		ReleaseOutlineMaskResources();
 		return false;
 	}
+	RecordTextureCreate();
 
 	if (FAILED(Device->CreateRenderTargetView(OutlineMaskTexture, nullptr, &OutlineMaskRTV)))
 	{
@@ -590,8 +738,10 @@ void FRenderer::UpdateFrameConstantBuffer()
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	if (SUCCEEDED(DeviceContext->Map(FrameConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
 	{
+		RecordBufferMap();
 		memcpy(Mapped.pData, &CBData, sizeof(CBData));
 		DeviceContext->Unmap(FrameConstantBuffer, 0);
+		RecordBufferUnmap();
 	}
 }
 
@@ -602,8 +752,10 @@ void FRenderer::UpdateObjectConstantBuffer(const FMatrix& WorldMatrix)
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	if (SUCCEEDED(DeviceContext->Map(ObjectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
 	{
+		RecordBufferMap();
 		memcpy(Mapped.pData, &CBData, sizeof(CBData));
 		DeviceContext->Unmap(ObjectConstantBuffer, 0);
+		RecordBufferUnmap();
 	}
 }
 
@@ -617,8 +769,10 @@ void FRenderer::UpdateOutlinePostConstantBuffer(const FVector4& OutlineColor, fl
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	if (SUCCEEDED(DeviceContext->Map(OutlinePostConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
 	{
+		RecordBufferMap();
 		memcpy(Mapped.pData, &CBData, sizeof(CBData));
 		DeviceContext->Unmap(OutlinePostConstantBuffer, 0);
+		RecordBufferUnmap();
 	}
 
 	ID3D11Buffer* Buffer = OutlinePostConstantBuffer;
@@ -830,18 +984,22 @@ void FRenderer::RenderOutlines(const TArray<FOutlineRenderItem>& Items)
 		}
 
 		Item.Mesh->Bind(DeviceContext);
+		RecordMeshBind();
 		if (Item.Mesh->Topology != EMeshTopology::EMT_Undefined)
 		{
 			DeviceContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Item.Mesh->Topology);
+			RecordTopologyBind();
 		}
 
 		if (ObjectUniformStream && ItemIndex < ObjectAllocations.size())
 		{
 			ObjectUniformStream->BindAllocation(ObjectAllocations[ItemIndex]);
+			RecordObjectBind();
 		}
 		else
 		{
 			UpdateObjectConstantBuffer(Item.WorldMatrix);
+			RecordObjectBind();
 		}
 
 		if (!Item.Mesh->Indices.empty())
@@ -923,27 +1081,36 @@ void FRenderer::ExecuteLineCommands()
 	if (!LineVertexBuffer)
 	{
 		D3D11_BUFFER_DESC Desc = { Size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0 };
-		Device->CreateBuffer(&Desc, nullptr, &LineVertexBuffer);
-		LineVertexBufferSize = Size;
+		if (SUCCEEDED(Device->CreateBuffer(&Desc, nullptr, &LineVertexBuffer)))
+		{
+			LineVertexBufferSize = Size;
+			RecordBufferCreate();
+		}
 	}
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	if (SUCCEEDED(DeviceContext->Map(LineVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
 	{
+		RecordBufferMap();
 		memcpy(Mapped.pData, LineVertices.data(), Size);
 		DeviceContext->Unmap(LineVertexBuffer, 0);
+		RecordBufferUnmap();
 	}
 	UINT Stride = sizeof(FVertex), Offset = 0;
 	DeviceContext->IASetVertexBuffers(0, 1, &LineVertexBuffer, &Stride, &Offset);
+	RecordMeshBind();
 	DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+	RecordTopologyBind();
 	if (ObjectUniformStream)
 	{
 		const uint32 AllocationIndex = ObjectUniformStream->AllocateWorldMatrix(FMatrix::Identity);
 		ObjectUniformStream->UploadFrame();
 		ObjectUniformStream->BindAllocation(AllocationIndex);
+		RecordObjectBind();
 	}
 	else
 	{
 		UpdateObjectConstantBuffer(FMatrix::Identity);
+		RecordObjectBind();
 	}
 	++FrameDrawCallCount;
 	DeviceContext->Draw(static_cast<UINT>(LineVertices.size()), 0);

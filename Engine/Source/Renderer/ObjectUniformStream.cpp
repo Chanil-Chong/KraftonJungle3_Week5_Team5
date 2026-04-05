@@ -1,4 +1,5 @@
 #include "Renderer/ObjectUniformStream.h"
+#include "Renderer/Renderer.h"
 
 #include <algorithm>
 #include <cstring>
@@ -96,8 +97,10 @@ bool FObjectUniformStream::UploadFrame()
 		return false;
 	}
 
+	FRenderer::RecordBufferMap();
 	memcpy(Mapped.pData, PendingObjects.data(), PendingObjects.size() * sizeof(FObjectUniformEntry));
 	DeviceContext->Unmap(ObjectRingBuffer, 0);
+	FRenderer::RecordBufferUnmap();
 	return true;
 }
 
@@ -125,8 +128,10 @@ void FObjectUniformStream::BindAllocation(uint32 AllocationIndex)
 	D3D11_MAPPED_SUBRESOURCE Mapped = {};
 	if (SUCCEEDED(DeviceContext->Map(FallbackObjectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
 	{
+		FRenderer::RecordBufferMap();
 		memcpy(Mapped.pData, &PendingObjects[AllocationIndex].ObjectConstants, sizeof(FObjectConstantBuffer));
 		DeviceContext->Unmap(FallbackObjectConstantBuffer, 0);
+		FRenderer::RecordBufferUnmap();
 	}
 
 	ID3D11Buffer* Buffer = FallbackObjectConstantBuffer;
@@ -162,6 +167,12 @@ bool FObjectUniformStream::EnsureCapacity(uint32 InAllocationCount)
 	Desc.ByteWidth = CapacityInObjects * sizeof(FObjectUniformEntry);
 	Desc.ByteWidth = (Desc.ByteWidth + 15u) & ~15u;
 
-	return SUCCEEDED(Device->CreateBuffer(&Desc, nullptr, &ObjectRingBuffer));
+	if (FAILED(Device->CreateBuffer(&Desc, nullptr, &ObjectRingBuffer)))
+	{
+		return false;
+	}
+
+	FRenderer::RecordBufferCreate();
+	return true;
 }
 

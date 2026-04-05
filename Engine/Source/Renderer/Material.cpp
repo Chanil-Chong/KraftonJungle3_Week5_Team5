@@ -1,4 +1,5 @@
 #include "Material.h"
+#include "Renderer/Renderer.h"
 #include "Shader.h"
 #include <cstring>
 
@@ -66,6 +67,7 @@ bool FMaterialConstantBuffer::Create(ID3D11Device* Device, uint32 InSize)
 		return false;
 	}
 
+	FRenderer::RecordBufferCreate();
 	bDirty = true; // 초기 데이터(0)도 업로드 필요
 	return true;
 }
@@ -99,8 +101,10 @@ void FMaterialConstantBuffer::Upload(ID3D11DeviceContext* DeviceContext)
 	HRESULT Hr = DeviceContext->Map(GPUBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped);
 	if (SUCCEEDED(Hr))
 	{
+		FRenderer::RecordBufferMap();
 		memcpy(Mapped.pData, CPUData, Size);
 		DeviceContext->Unmap(GPUBuffer, 0);
+		FRenderer::RecordBufferUnmap();
 	}
 	bDirty = false;
 }
