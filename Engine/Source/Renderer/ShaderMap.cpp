@@ -64,9 +64,39 @@ std::shared_ptr<FPixelShader> FShaderMap::GetOrCreatePixelShader(
 	return PS;
 }
 
+
+std::shared_ptr<FComputeShader> FShaderMap::GetOrCreateComputeShader(
+	ID3D11Device* Device,
+	const wchar_t* FilePath)
+{
+	std::wstring Key(FilePath);
+
+	auto It = ComputeShaders.find(Key);
+	if (It != ComputeShaders.end())
+	{
+		return It->second;
+	}
+
+	auto Resource = FShaderResource::GetOrCompile(FilePath, "main", "cs_5_0");
+	if (!Resource)
+	{
+		return nullptr;
+	}
+
+	auto CS = FComputeShader::Create(Device, Resource);
+	if (!CS)
+	{
+		return nullptr;
+	}
+
+	ComputeShaders[Key] = CS;
+	return CS;
+}
+
 void FShaderMap::Clear()
 {
 	VertexShaders.clear();
 	PixelShaders.clear();
+	ComputeShaders.clear();
 	FShaderResource::ClearCache();
 }

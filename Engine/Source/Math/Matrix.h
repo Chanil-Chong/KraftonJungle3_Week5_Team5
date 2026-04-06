@@ -707,7 +707,7 @@ public:
 		);
 	}
 
-	// Left-Handed 기준 원근 투영 행렬을 생성함
+	// Left-Handed 기준 Reversed-Z 원근 투영 행렬을 생성함
 	static FMatrix MakePerspectiveFovLH(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
 	{
 		assert(AspectRatio != 0.f);
@@ -715,27 +715,30 @@ public:
 
 		const float YScale = 1.0f / std::tan(FovYRad * 0.5f);
 		const float XScale = YScale / AspectRatio;
+		const float InvDepthRange = 1.0f / (FarZ - NearZ);
 
 		return FMatrix(
-			0.f, 0.f, FarZ / (FarZ - NearZ), 1.f,
+			0.f, 0.f, -NearZ * InvDepthRange, 1.f,
 			XScale, 0.f, 0.f, 0.f,
 			0.f, YScale, 0.f, 0.f,
-			0.f, 0.f, -NearZ * FarZ / (FarZ - NearZ), 0.f
+			0.f, 0.f, NearZ * FarZ * InvDepthRange, 0.f
 		);
 	}
 
-	// Left-Handed 기준 직교 투영 행렬을 생성함
+	// Left-Handed 기준 Reversed-Z 직교 투영 행렬을 생성함
 	static FMatrix MakeOrthographicLH(float ViewWidth, float ViewHeight, float NearZ, float FarZ) noexcept
 	{
 		assert(ViewWidth != 0.f);
 		assert(ViewHeight != 0.f);
 		assert(FarZ != NearZ);
 
+		const float InvDepthRange = 1.0f / (FarZ - NearZ);
+
 		return FMatrix(
-			0.f, 0.f, 1.f / (FarZ - NearZ), 0.f,
+			0.f, 0.f, -InvDepthRange, 0.f,
 			2.f / ViewWidth, 0.f, 0.f, 0.f,
 			0.f, 2.f / ViewHeight, 0.f, 0.f,
-			0.f, 0.f, -NearZ / (FarZ - NearZ), 1.f
+			0.f, 0.f, FarZ * InvDepthRange, 1.f
 		);
 	}
 

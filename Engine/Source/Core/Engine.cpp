@@ -203,6 +203,14 @@ const FWorldContext* FEngine::GetActiveWorldContext() const
 
 bool FEngine::HandleMessage(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam)
 {
+	if (Msg == WM_KEYDOWN && WParam == VK_F1)
+	{
+		if (Renderer)
+		{
+			Renderer->SetVisualizeHiZ(!Renderer->IsVisualizeHiZ());
+		}
+	}
+
 	if (InputManager)
 	{
 		InputManager->ProcessMessage(Hwnd, Msg, WParam, LParam);

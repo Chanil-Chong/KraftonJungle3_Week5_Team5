@@ -23,7 +23,7 @@ namespace
 			PassState.RasterizerState.CullMode = D3D11_CULL_BACK;
 			PassState.DepthStencilState.DepthEnable = true;
 			PassState.DepthStencilState.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_LESS;
+			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_GREATER;
 			break;
 
 		case ERenderPass::Alpha:
@@ -31,7 +31,7 @@ namespace
 			PassState.RasterizerState.CullMode = D3D11_CULL_NONE;
 			PassState.DepthStencilState.DepthEnable = true;
 			PassState.DepthStencilState.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_LESS;
+			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_GREATER;
 			PassState.BlendState.BlendEnable = true;
 			PassState.BlendState.SrcBlend = D3D11_BLEND_SRC_ALPHA;
 			PassState.BlendState.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
@@ -128,6 +128,18 @@ namespace
 			DrawCommand.SubmissionOrder = InOutSubmissionOrder++;
 			DrawCommand.MaterialKey = Material->GetSortId();
 			DrawCommand.MeshKey = RenderItem.RenderMesh->GetSortId();
+			if (CommandOverride && CommandOverride->SceneProxy)
+			{
+				DrawCommand.Bounds = CommandOverride->SceneProxy->GetBounds();
+			}
+			DrawCommand.bCanUseHiZOcclusion = (
+				RenderPass == ERenderPass::Opaque &&
+				RenderItem.RenderMesh != nullptr &&
+				!RenderItem.RenderMesh->Indices.empty() &&
+				RenderItem.RenderMesh->Topology != EMeshTopology::EMT_Undefined &&
+				DrawCommand.Bounds.BoxExtent.X > 0.0f &&
+				DrawCommand.Bounds.BoxExtent.Y > 0.0f &&
+				DrawCommand.Bounds.BoxExtent.Z > 0.0f);
 
 			if (bHasCachedObjectAllocation && RenderItem.WorldMatrix == CachedWorldMatrix)
 			{

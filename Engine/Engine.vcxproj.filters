@@ -944,6 +944,16 @@
     <ClInclude Include="Source\Asset\StaticMeshLODBuilder.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Renderer\HiZOcclusion.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\Renderer\HiZOcclusion.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -4,6 +4,7 @@
 #include "ShaderMap.h"
 #include "ShaderResource.h"
 #include "Material.h"
+#include "HiZOcclusion.h"
 #include "ObjectUniformStream.h"
 #include "PassExecutor.h"
 #include "MaterialManager.h"
@@ -79,10 +80,11 @@ FRenderer::~FRenderer()
 	Release();
 }
 
-void FRenderer::SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, const D3D11_VIEWPORT& InViewport)
+void FRenderer::SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, const D3D11_VIEWPORT& InViewport, ID3D11ShaderResourceView* InDepthShaderResourceView)
 {
 	SceneRenderTargetView = InRenderTargetView;
 	SceneDepthStencilView = InDepthStencilView;
+	SceneDepthShaderResourceView = InDepthShaderResourceView;
 	SceneViewport = InViewport;
 	bUseSceneRenderTargetOverride = (SceneRenderTargetView != nullptr && SceneDepthStencilView != nullptr);
 }
@@ -91,14 +93,18 @@ void FRenderer::ClearSceneRenderTarget()
 {
 	SceneRenderTargetView = nullptr;
 	SceneDepthStencilView = nullptr;
+	SceneDepthShaderResourceView = nullptr;
 	SceneViewport = {};
 	bUseSceneRenderTargetOverride = false;
 }
 
-void FRenderer::BeginScenePass(ID3D11RenderTargetView* InRTV, ID3D11DepthStencilView* InDSV, const D3D11_VIEWPORT& InVP)
+void FRenderer::BeginScenePass(ID3D11RenderTargetView* InRTV, ID3D11DepthStencilView* InDSV, const D3D11_VIEWPORT& InVP, ID3D11ShaderResourceView* InDepthSRV, uint64 InHiZViewKey)
 {
 	DeviceContext->OMSetRenderTargets(1, &InRTV, InDSV);
 	DeviceContext->RSSetViewports(1, &InVP);
+	ActiveDepthStencilView = InDSV;
+	ActiveDepthShaderResourceView = InDepthSRV;
+	ActiveHiZViewKey = InHiZViewKey;
 	ClearCommandList();
 }
 
@@ -224,19 +230,29 @@ bool FRenderer::CreateRenderTargetAndDepthStencil(int32 Width, int32 Height)
 	DepthDesc.Height = Height;
 	DepthDesc.MipLevels = 1;
 	DepthDesc.ArraySize = 1;
-	DepthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	DepthDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 	DepthDesc.SampleDesc.Count = 1;
 	DepthDesc.Usage = D3D11_USAGE_DEFAULT;
-	DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
-	ID3D11Texture2D* DepthTex = nullptr;
-	Hr = Device->CreateTexture2D(&DepthDesc, nullptr, &DepthTex);
+	Hr = Device->CreateTexture2D(&DepthDesc, nullptr, &DepthTexture);
 	if (FAILED(Hr)) return false;
-	
-	Hr = Device->CreateDepthStencilView(DepthTex, nullptr, &DepthStencilView);
-	DepthTex->Release();
-	
-	return SUCCEEDED(Hr);
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC DepthDSVDesc = {};
+	DepthDSVDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	DepthDSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	Hr = Device->CreateDepthStencilView(DepthTexture, &DepthDSVDesc, &DepthStencilView);
+	if (FAILED(Hr)) return false;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC DepthSRVDesc = {};
+	DepthSRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	DepthSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	DepthSRVDesc.Texture2D.MostDetailedMip = 0;
+	DepthSRVDesc.Texture2D.MipLevels = 1;
+	Hr = Device->CreateShaderResourceView(DepthTexture, &DepthSRVDesc, &DepthSRV);
+	if (FAILED(Hr)) return false;
+
+	return true;
 }
 
 bool FRenderer::Initialize(HWND InHwnd, int32 Width, int32 Height)
@@ -264,7 +280,9 @@ bool FRenderer::Initialize(HWND InHwnd, int32 Width, int32 Height)
 	if (!ObjectUniformStream->Initialize(Device, DeviceContext, ObjectConstantBuffer)) return false;
 	SceneRenderer = std::make_unique<FSceneRenderer>(this);
 	PassExecutor = std::make_unique<FPassExecutor>(this);
+	HiZOcclusion = std::make_unique<FHiZOcclusion>(this);
 	CurrentRenderFrame = std::make_unique<FSceneRenderFrame>();
+	if (!HiZOcclusion->Initialize()) return false;
 
 	std::wstring ShaderDirW = FPaths::ShaderDir();
 	std::wstring VSPath = ShaderDirW + L"VertexShader.hlsl";
@@ -353,22 +371,26 @@ void FRenderer::BeginFrame()
 
 	if (DepthStencilView)
 	{
-		DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 	}
 
 	ID3D11RenderTargetView* ActiveRTV = RenderTargetView;
 	ID3D11DepthStencilView* ActiveDSV = DepthStencilView;
+	ID3D11ShaderResourceView* ActiveDepthSRV = DepthSRV;
 	D3D11_VIEWPORT ActiveVP = Viewport;
 
 	if (bUseSceneRenderTargetOverride)
 	{
 		ActiveRTV = SceneRenderTargetView;
 		ActiveDSV = SceneDepthStencilView;
+		ActiveDepthSRV = SceneDepthShaderResourceView;
 		ActiveVP = SceneViewport;
 		if (ActiveRTV && ActiveRTV != RenderTargetView) DeviceContext->ClearRenderTargetView(ActiveRTV, ClearColor);
-		if (ActiveDSV && ActiveDSV != DepthStencilView) DeviceContext->ClearDepthStencilView(ActiveDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		if (ActiveDSV && ActiveDSV != DepthStencilView) DeviceContext->ClearDepthStencilView(ActiveDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 	}
 
+	ActiveDepthStencilView = ActiveDSV;
+	ActiveDepthShaderResourceView = ActiveDepthSRV;
 	DeviceContext->OMSetRenderTargets(1, &ActiveRTV, ActiveDSV);
 	DeviceContext->RSSetViewports(1, &ActiveVP);
 
@@ -437,9 +459,32 @@ void FRenderer::ExecuteCommands()
 	PassExecutor->Execute(*CurrentRenderFrame);
 
 	if (PostRenderCallback) PostRenderCallback(this);
+	FinalizeHiZOcclusionHistory();
 
 	PrevCommandCount = PendingCommandQueue.Commands.size();
 	ClearCommandList();
+}
+
+
+bool FRenderer::PrepareHiZOcclusion(const FSceneRenderFrame& Frame)
+{
+	return HiZOcclusion ? HiZOcclusion->Prepare(Frame, ViewMatrix, ProjectionMatrix) : false;
+}
+
+void FRenderer::FinalizeHiZOcclusionHistory()
+{
+	if (HiZOcclusion)
+	{
+		HiZOcclusion->FinalizeFromActiveDepth();
+	}
+}
+
+void FRenderer::ExecuteOpaqueQueueWithHiZ(const TArray<FMeshDrawCommand>& InCommands)
+{
+	if (HiZOcclusion)
+	{
+		HiZOcclusion->ExecuteOpaqueQueue(InCommands);
+	}
 }
 
 void FRenderer::ClearDepthBuffer()
@@ -450,7 +495,7 @@ void FRenderer::ClearDepthBuffer()
 
 	if (BoundDSV)
 	{
-		DeviceContext->ClearDepthStencilView(BoundDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		DeviceContext->ClearDepthStencilView(BoundDSV, D3D11_CLEAR_DEPTH, 0.0f, 0);
 	}
 
 	if (BoundRTV)
@@ -957,6 +1002,11 @@ void FRenderer::Release()
 	CurrentRenderFrame.reset();
 	SceneRenderer.reset();
 	PassExecutor.reset();
+	if (HiZOcclusion)
+	{
+		HiZOcclusion->Release();
+		HiZOcclusion.reset();
+	}
 	if (ObjectUniformStream)
 	{
 		ObjectUniformStream->Release();
@@ -982,7 +1032,9 @@ void FRenderer::Release()
 	if (FrameConstantBuffer) FrameConstantBuffer->Release();
 	if (ObjectConstantBuffer) ObjectConstantBuffer->Release();
 	if (OutlinePostConstantBuffer) OutlinePostConstantBuffer->Release();
+	if (DepthSRV) DepthSRV->Release();
 	if (DepthStencilView) DepthStencilView->Release();
+	if (DepthTexture) DepthTexture->Release();
 	if (RenderTargetView) RenderTargetView->Release();
 	if (SwapChain) SwapChain->Release();
 	if (DeviceContext) DeviceContext->Release();
@@ -1001,7 +1053,9 @@ void FRenderer::OnResize(int32 W, int32 H)
 	ClearSceneRenderTarget();
 	DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
 	if (RenderTargetView) { RenderTargetView->Release(); RenderTargetView = nullptr; }
+	if (DepthSRV) { DepthSRV->Release(); DepthSRV = nullptr; }
 	if (DepthStencilView) { DepthStencilView->Release(); DepthStencilView = nullptr; }
+	if (DepthTexture) { DepthTexture->Release(); DepthTexture = nullptr; }
 	ReleaseOutlineMaskResources();
 	const UINT ResizeFlags = bAllowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 	SwapChain->ResizeBuffers(0, W, H, DXGI_FORMAT_UNKNOWN, ResizeFlags);

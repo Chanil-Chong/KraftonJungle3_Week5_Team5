@@ -174,22 +174,25 @@ void FEditorViewportRenderService::RenderAll(
 
 		ID3D11RenderTargetView* RTV = nullptr;
 		ID3D11DepthStencilView* DSV = nullptr;
+		ID3D11ShaderResourceView* DepthSRV = nullptr;
 
 		if (bUseDirectSingleViewportPath)
 		{
 			RTV = Renderer->GetRenderTargetView();
 			DSV = Renderer->GetDepthStencilView();
+			DepthSRV = Renderer->GetDepthShaderResourceView();
 		}
 		else
 		{
 			Entry.Viewport->EnsureResources(Device);
 			RTV = Entry.Viewport->GetRTV();
 			DSV = Entry.Viewport->GetDSV();
+			DepthSRV = Entry.Viewport->GetDepthSRV();
 
 			if (RTV && DSV)
 			{
 				Context->ClearRenderTargetView(RTV, ClearColor);
-				Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+				Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 			}
 		}
 
@@ -198,7 +201,7 @@ void FEditorViewportRenderService::RenderAll(
 			continue;
 		}
 
-		Renderer->BeginScenePass(RTV, DSV, Viewport);
+		Renderer->BeginScenePass(RTV, DSV, Viewport, DepthSRV, static_cast<uint64>(Entry.Id) + 1ull);
 
 		const float AspectRatio = static_cast<float>(Rect.Width) / static_cast<float>(Rect.Height);
 		FRenderCommandQueue Queue;
@@ -287,8 +290,8 @@ void FEditorViewportRenderService::RenderAll(
 		RECT rc{};
 		::GetClientRect(Renderer->GetHwnd(), &rc);
 		SlatePainter->SetScreenSize(rc.right - rc.left, rc.bottom - rc.top);
-		Slate->Paint(*SlatePainter);
-		SlatePainter->Flush();
+		//Slate->Paint(*SlatePainter);
+		//SlatePainter->Flush();
 	}
 
 	EditorUI.Render();

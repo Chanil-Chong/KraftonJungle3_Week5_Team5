@@ -8,6 +8,7 @@
 #include "Component/SceneComponent.h"
 #include "Platform/Windows/WindowsWindow.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/HiZOcclusion.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -962,6 +963,44 @@ void FEditorUI::Render()
 	}
 	Outliner.Render(Engine);
 	ContentBrowser.Render();
+
+	if (CurrentRenderer && CurrentRenderer->IsVisualizeHiZ())
+	{
+		ImGui::SetNextWindowSize(ImVec2(300, 320), ImGuiCond_FirstUseEver);
+		if (ImGui::Begin("HiZ Visualization", nullptr))
+		{
+			if (FHiZOcclusion* HiZ = CurrentRenderer->GetHiZOcclusion())
+			{
+				static int MipLevel = 0;
+				int MaxMip = static_cast<int>(HiZ->GetResourceMipCount()) - 1;
+				if (MaxMip < 0) MaxMip = 0;
+				if (MipLevel > MaxMip) MipLevel = MaxMip;
+				ImGui::SliderInt("Mip Level", &MipLevel, 0, MaxMip);
+				ImGui::Text("View Key: %llu", static_cast<unsigned long long>(HiZ->GetCurrentDebugViewKey()));
+
+				ID3D11ShaderResourceView* HiZSRV = HiZ->GetHiZDebugSRV(static_cast<uint32>(MipLevel));
+				if (HiZSRV)
+				{
+					ImVec2 Size = ImGui::GetContentRegionAvail();
+					ImGui::Image(reinterpret_cast<void*>(HiZSRV), Size, ImVec2(0, 0), ImVec2(1, 1), ImVec4(1, 1, 1, 1), ImVec4(1, 0, 0, 1));
+
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::SetTooltip("HiZ Texture (Mip %d)", MipLevel);
+					}
+				}
+				else if (!HiZ->HasValidHistoryForCurrentView())
+				{
+					ImGui::Text("HiZ history not available for the current viewport yet");
+				}
+				else
+				{
+					ImGui::Text("HiZ debug preview not available");
+				}
+			}
+		}
+		ImGui::End();
+	}
 }
 
 bool FEditorUI::GetViewportMousePosition(int32 WindowMouseX, int32 WindowMouseY, int32& OutViewportX, int32& OutViewportY, int32& OutWidth, int32& OutHeight) const

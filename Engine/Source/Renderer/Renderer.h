@@ -20,6 +20,8 @@ class UScene;
 class FSceneRenderer;
 class FPassExecutor;
 class FObjectUniformStream;
+class FHiZOcclusion;
+struct FMeshDrawCommand;
 struct FSceneRenderFrame;
 
 using FGUICallback = std::function<void()>;
@@ -34,6 +36,7 @@ class ENGINE_API FRenderer
 {
 	friend class FSceneRenderer;
 	friend class FPassExecutor;
+	friend class FHiZOcclusion;
 
 public:
 	FRenderer(HWND InHwnd, int32 InWidth, int32 InHeight);
@@ -58,12 +61,12 @@ public:
 	void OnResize(int32 NewWidth, int32 NewHeight);
 
 	/** 특정 뷰포트용 렌더 타깃을 임시로 사용하도록 설정한다. */
-	void SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, const D3D11_VIEWPORT& InViewport);
+	void SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, const D3D11_VIEWPORT& InViewport, ID3D11ShaderResourceView* InDepthShaderResourceView = nullptr);
 	/** 임시 씬 렌더 타깃 오버라이드를 해제하고 스왑체인 백버퍼로 되돌린다. */
 	void ClearSceneRenderTarget();
 
 	/** 외부 패스가 자체 RTV/DSV/뷰포트를 쓰고 싶을 때 렌더 상태를 그쪽으로 전환한다. */
-	void BeginScenePass(ID3D11RenderTargetView* InRTV, ID3D11DepthStencilView* InDSV, const D3D11_VIEWPORT& InVP);
+	void BeginScenePass(ID3D11RenderTargetView* InRTV, ID3D11DepthStencilView* InDSV, const D3D11_VIEWPORT& InVP, ID3D11ShaderResourceView* InDepthSRV = nullptr, uint64 InHiZViewKey = 0);
 	/** BeginScenePass와 쌍을 이루는 종료 훅이다. 현재는 자리만 잡아둔 상태다. */
 	void EndScenePass();
 	/** 렌더 타깃을 다시 스왑체인 백버퍼로 바인딩한다. */
@@ -71,6 +74,9 @@ public:
 
 	void SetVSync(bool bEnable) { bVSyncEnabled = bEnable; }
 	bool IsVSyncEnabled() const { return bVSyncEnabled; }
+
+	void SetVisualizeHiZ(bool bEnable) { bVisualizeHiZ = bEnable; }
+	bool IsVisualizeHiZ() const { return bVisualizeHiZ; }
 
 	bool bSwapChainOccluded = false;
 
@@ -88,6 +94,9 @@ public:
 	void SubmitCommands(FRenderCommandQueue&& Queue);
 	/** 커맨드 리스트를 정렬하고 패스별로 GPU 드로우콜을 실행한다. */
 	void ExecuteCommands();
+	bool PrepareHiZOcclusion(const FSceneRenderFrame& Frame);
+	void FinalizeHiZOcclusionHistory();
+	void ExecuteOpaqueQueueWithHiZ(const TArray<FMeshDrawCommand>& InCommands);
 
 	/** 지정한 렌더 레이어 하나만 골라 실제 드로우콜을 수행한다. */
 	/** 디버그 선 하나를 임시 버퍼에 추가한다. */
@@ -114,10 +123,13 @@ public:
 	size_t GetPrevCommandCount() const { return PrevCommandCount; }
 	uint32 GetFrameDrawCallCount() const { return FrameDrawCallCount; }
 	std::unique_ptr<FRenderStateManager>& GetRenderStateManager() { return RenderStateManager; }
+	FHiZOcclusion* GetHiZOcclusion() const { return HiZOcclusion.get(); }
 	ID3D11Device* GetDevice() const { return Device; }
 	ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
 	ID3D11RenderTargetView* GetRenderTargetView() const { return RenderTargetView; }
 	ID3D11DepthStencilView* GetDepthStencilView() const;
+	ID3D11ShaderResourceView* GetDepthShaderResourceView() const { return DepthSRV; }
+	uint64 GetActiveHiZViewKey() const { return ActiveHiZViewKey; }
 	IDXGISwapChain* GetSwapChain() const { return SwapChain; }
 	HWND GetHwnd() const { return Hwnd; }
 
@@ -161,6 +173,7 @@ private:
 	std::unique_ptr<FRenderStateManager> RenderStateManager = nullptr;
 	std::unique_ptr<FSceneRenderer> SceneRenderer = nullptr;
 	std::unique_ptr<FPassExecutor> PassExecutor = nullptr;
+	std::unique_ptr<FHiZOcclusion> HiZOcclusion = nullptr;
 	std::unique_ptr<FObjectUniformStream> ObjectUniformStream = nullptr;
 	std::unique_ptr<FSceneRenderFrame> CurrentRenderFrame = nullptr;
 
@@ -169,7 +182,9 @@ private:
 	ID3D11DeviceContext* DeviceContext = nullptr;
 	IDXGISwapChain* SwapChain = nullptr;
 	ID3D11RenderTargetView* RenderTargetView = nullptr;
+	ID3D11Texture2D* DepthTexture = nullptr;
 	ID3D11DepthStencilView* DepthStencilView = nullptr;
+	ID3D11ShaderResourceView* DepthSRV = nullptr;
 
 	ID3D11Buffer* FrameConstantBuffer = nullptr;
 	ID3D11Buffer* ObjectConstantBuffer = nullptr;
@@ -181,10 +196,15 @@ private:
 
 	ID3D11RenderTargetView* SceneRenderTargetView = nullptr;
 	ID3D11DepthStencilView* SceneDepthStencilView = nullptr;
+	ID3D11ShaderResourceView* SceneDepthShaderResourceView = nullptr;
+	ID3D11DepthStencilView* ActiveDepthStencilView = nullptr;
+	ID3D11ShaderResourceView* ActiveDepthShaderResourceView = nullptr;
 	D3D11_VIEWPORT SceneViewport = {};
 	bool bUseSceneRenderTargetOverride = false;
+	uint64 ActiveHiZViewKey = 0;
 	bool bVSyncEnabled = false;
 	bool bAllowTearing = false;
+	bool bVisualizeHiZ = false;
 
 	/** 이번 프레임에 실제 실행할 렌더 커맨드 리스트다. */
 	FRenderCommandQueue PendingCommandQueue;

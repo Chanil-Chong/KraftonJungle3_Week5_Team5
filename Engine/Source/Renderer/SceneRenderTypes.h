@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Renderer/RenderCommand.h"
+#include "Component/PrimitiveComponent.h"
 
 struct FRenderMesh;
 class FMaterial;
@@ -28,4 +29,6 @@ struct ENGINE_API FMeshDrawCommand
 	uint64 SubmissionOrder = 0;
 	uint64 MaterialKey = 0;
 	uint64 MeshKey = 0;
+	FBoxSphereBounds Bounds = {};
+	bool bCanUseHiZOcclusion = false;
 };

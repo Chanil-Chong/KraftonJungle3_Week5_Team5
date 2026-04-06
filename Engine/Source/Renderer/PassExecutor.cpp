@@ -60,12 +60,18 @@ void FPassExecutor::Execute(const FSceneRenderFrame& Frame) const
 	Renderer->RenderStateManager->RebindState();
 
 	Renderer->SetConstantBuffers();
+	const bool bPreparedHiZOpaque = Renderer->PrepareHiZOcclusion(Frame);
 
 	for (ERenderPass RenderPass : GPassExecutionOrder)
 	{
 		const TArray<FMeshDrawCommand>& PassCommands = Frame.GetPassQueue(RenderPass);
 		if (PassCommands.empty()) continue; // 빈 패스면 스킵
 		BindPassState(*Renderer, Frame.GetPassState(RenderPass));
+		if (RenderPass == ERenderPass::Opaque && bPreparedHiZOpaque)
+		{
+			Renderer->ExecuteOpaqueQueueWithHiZ(PassCommands);
+			continue;
+		}
 		ExecuteQueue(PassCommands);
 	}
 

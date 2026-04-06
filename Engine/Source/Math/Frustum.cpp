@@ -12,8 +12,8 @@ void FFrustum::ExtractFromVP(const FMatrix& VP)
 	Planes[Bottom] = { VP[0][3] + VP[0][1], VP[1][3] + VP[1][1], VP[2][3] + VP[2][1], VP[3][3] + VP[3][1] };
 	// Top:    col3 - col1
 	Planes[Top]    = { VP[0][3] - VP[0][1], VP[1][3] - VP[1][1], VP[2][3] - VP[2][1], VP[3][3] - VP[3][1] };
-	// Near:   col3 + col2
-	Planes[Near]   = { VP[0][3] + VP[0][2], VP[1][3] + VP[1][2], VP[2][3] + VP[2][2], VP[3][3] + VP[3][2] };
+	// Near:   col2 (D3D clip-space z >= 0)
+	Planes[Near]   = { VP[0][2], VP[1][2], VP[2][2], VP[3][2] };
 	// Far:    col3 - col2
 	Planes[Far]    = { VP[0][3] - VP[0][2], VP[1][3] - VP[1][2], VP[2][3] - VP[2][2], VP[3][3] - VP[3][2] };
 

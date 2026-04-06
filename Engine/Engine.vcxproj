@@ -90,6 +90,7 @@
     <ClInclude Include="Source\Primitive\PrimitiveGizmo.h" />
     <ClInclude Include="Source\Primitive\UnrealEditorStyledGizmo.h" />
     <ClInclude Include="Source\Renderer\FontAtlas.h" />
+    <ClInclude Include="Source\Renderer\HiZOcclusion.h" />
     <ClInclude Include="Source\Renderer\Material.h" />
     <ClInclude Include="Source\Renderer\MaterialManager.h" />
     <ClInclude Include="Source\Renderer\ObjectUniformStream.h" />
@@ -285,6 +286,7 @@
     <ClCompile Include="Source\Primitive\PrimitiveGizmo.cpp" />
     <ClCompile Include="Source\Primitive\UnrealEditorStyledGizmo.cpp" />
     <ClCompile Include="Source\Renderer\FontAtlas.cpp" />
+    <ClCompile Include="Source\Renderer\HiZOcclusion.cpp" />
     <ClCompile Include="Source\Renderer\Material.cpp" />
     <ClCompile Include="Source\Renderer\MaterialManager.cpp" />
     <ClCompile Include="Source\Renderer\ObjectUniformStream.cpp" />
