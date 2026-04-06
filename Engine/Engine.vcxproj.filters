@@ -252,6 +252,9 @@
     <ClCompile Include="Source\Renderer\MaterialManager.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Renderer\HiZOcclusion.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Renderer\ObjectUniformStream.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
@@ -529,6 +532,9 @@
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\MaterialManager.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\HiZOcclusion.h">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\ObjectUniformStream.h">

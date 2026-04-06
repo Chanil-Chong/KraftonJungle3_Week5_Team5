@@ -19,6 +19,7 @@
 
 #include <windows.h>
 #include <commdlg.h>
+#include <algorithm>
 
 #include "Debug/EngineLog.h"
 #include "Component/CameraComponent.h"
@@ -319,6 +320,12 @@ void FEditorUI::SetupWindow(FWindowsWindow* InWindow)
 			if (!bViewportClientActive)
 			{
 				return false;
+			}
+
+			if (Msg == WM_KEYDOWN && WParam == VK_F1)
+			{
+				DebugState.HiZ = !DebugState.HiZ;
+				return true;
 			}
 
 			const bool bIsImeMessage =
@@ -765,6 +772,7 @@ void FEditorUI::Render()
 		}
 		if (ImGui::BeginMenu("View"))
 		{
+			ImGui::MenuItem("Hi-Z Debug (F1)", nullptr, &DebugState.HiZ);
 			if (Engine)
 			{
 				FEditorViewportRegistry& ViewportRegistry = Engine->GetViewportRegistry();
@@ -962,6 +970,96 @@ void FEditorUI::Render()
 	}
 	Outliner.Render(Engine);
 	ContentBrowser.Render();
+
+	if (DebugState.HiZ)
+	{
+		ImGui::SetNextWindowSize(ImVec2(520.0f, 760.0f), ImGuiCond_FirstUseEver);
+		if (ImGui::Begin("Hi-Z Debug", &DebugState.HiZ))
+		{
+			if (!CurrentRenderer)
+			{
+				ImGui::TextUnformatted("Renderer unavailable");
+			}
+			else
+			{
+				const FHiZOcclusion::FDebugInfo Info = CurrentRenderer->GetHiZDebugInfo();
+				ImGui::Text("Initialized: %s", Info.bInitialized ? "Yes" : "No");
+				ImGui::Text("Frame: %llu", static_cast<unsigned long long>(Info.CurrentFrameNumber));
+				ImGui::Text("Depth Size: %u x %u", Info.DepthWidth, Info.DepthHeight);
+				ImGui::Text("Mip Count: %u", Info.HiZMipCount);
+				ImGui::Text("Readback Mip: %u (%u x %u)", Info.ReadbackMipIndex, Info.ReadbackWidth, Info.ReadbackHeight);
+				ImGui::Text("Pending Readbacks: %u", Info.PendingReadbackCount);
+				ImGui::Text("Resolved Readback: %s", Info.bHasResolvedReadback ? "Yes" : "No");
+				ImGui::Text("Last Resolved Frame: %llu", static_cast<unsigned long long>(Info.LastResolvedFrameNumber));
+				ImGui::Separator();
+				ImGui::Text("CPU Coarse Culling");
+				ImGui::Text("Input Commands: %u", Info.LastInputCommandCount);
+				ImGui::Text("Eligible Commands: %u", Info.LastEligibleCommandCount);
+				ImGui::Text("Unsupported Commands: %u", Info.LastUnsupportedCommandCount);
+				ImGui::Text("  - No SceneProxy: %u", Info.LastUnsupportedNoSceneProxyCount);
+				ImGui::Text("  - Non-opaque pass: %u", Info.LastUnsupportedNonOpaquePassCount);
+				ImGui::Text("  - Proxy type disallowed: %u", Info.LastUnsupportedProxyTypeCount);
+				ImGui::Text("First Unsupported: %s", Info.FirstUnsupportedDebugName[0] ? Info.FirstUnsupportedDebugName : "-");
+				ImGui::Text("Visible Commands: %u", Info.LastVisibleCommandCount);
+				ImGui::Text("Culled Commands: %u", Info.LastCulledCommandCount);
+				ImGui::Text("Kept: incompatible readback %u", Info.LastKeepNoCompatibleReadbackCount);
+				ImGui::Text("Kept: history %u", Info.LastKeepHistoryCount);
+				ImGui::Text("Kept: near protection %u", Info.LastKeepNearCount);
+				ImGui::Text("Kept: projection fail %u", Info.LastKeepProjectionFailCount);
+				ImGui::Text("Kept: screen edge %u", Info.LastKeepScreenEdgeCount);
+				ImGui::Text("Kept: small rect %u", Info.LastKeepSmallRectCount);
+				ImGui::Text("Kept: sample mismatch %u", Info.LastKeepSampleVisibleCount);
+				if (!Info.bHasResolvedReadback && Info.LastInputCommandCount > 0)
+				{
+					ImGui::Spacing();
+					ImGui::TextWrapped("Hi-Z readback has not resolved yet. Coarse culling starts only after the first resolved readback becomes available.");
+				}
+				else if (Info.LastEligibleCommandCount == 0 && Info.LastInputCommandCount > 0)
+				{
+					ImGui::Spacing();
+					ImGui::TextWrapped("This frame has no Hi-Z cullable scene proxy. The queue is currently dominated by overlays, non-opaque passes, or a proxy type that coarse occlusion does not support.");
+				}
+				ImGui::Separator();
+
+				ID3D11ShaderResourceView* PreviewSRV = CurrentRenderer->GetHiZDebugPreviewSRV();
+				if (PreviewSRV)
+				{
+					ImGui::TextUnformatted("Readback Preview (contrast-enhanced reversed-Z)");
+					const float MaxWidth = ImGui::GetContentRegionAvail().x;
+					const float PreviewWidth = Info.ReadbackWidth > 0 ? (std::min)(MaxWidth, static_cast<float>(Info.ReadbackWidth) * 2.0f) : MaxWidth;
+					const float Aspect = (Info.ReadbackWidth > 0 && Info.ReadbackHeight > 0)
+						? (static_cast<float>(Info.ReadbackHeight) / static_cast<float>(Info.ReadbackWidth))
+						: 1.0f;
+					ImGui::Image(reinterpret_cast<ImTextureID>(PreviewSRV), ImVec2(PreviewWidth, PreviewWidth * Aspect));
+				}
+				else
+				{
+					ImGui::TextUnformatted("Readback preview texture unavailable");
+				}
+
+				const uint32 MipCount = CurrentRenderer->GetHiZMipCount();
+				if (MipCount > 0)
+				{
+					static int SelectedMip = 0;
+					if (SelectedMip >= static_cast<int>(MipCount))
+					{
+						SelectedMip = static_cast<int>(MipCount) - 1;
+					}
+					ImGui::Separator();
+					ImGui::TextUnformatted("GPU Hi-Z SRV Preview");
+					ImGui::SliderInt("Mip", &SelectedMip, 0, static_cast<int>(MipCount) - 1);
+					if (ID3D11ShaderResourceView* MipSRV = CurrentRenderer->GetHiZMipSRV(static_cast<uint32>(SelectedMip)))
+					{
+						const float MaxWidth = ImGui::GetContentRegionAvail().x;
+						const float MipWidth = (std::min)(MaxWidth, 384.0f);
+						ImGui::Image(reinterpret_cast<ImTextureID>(MipSRV), ImVec2(MipWidth, MipWidth));
+						ImGui::TextUnformatted("This is a raw single-channel SRV preview. Use the readback preview above for readable debugging.");
+					}
+				}
+			}
+		}
+		ImGui::End();
+	}
 }
 
 bool FEditorUI::GetViewportMousePosition(int32 WindowMouseX, int32 WindowMouseY, int32& OutViewportX, int32& OutViewportY, int32& OutWidth, int32& OutHeight) const

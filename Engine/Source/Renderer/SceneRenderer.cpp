@@ -23,7 +23,7 @@ namespace
 			PassState.RasterizerState.CullMode = D3D11_CULL_BACK;
 			PassState.DepthStencilState.DepthEnable = true;
 			PassState.DepthStencilState.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_LESS;
+			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 			break;
 
 		case ERenderPass::Alpha:
@@ -31,7 +31,7 @@ namespace
 			PassState.RasterizerState.CullMode = D3D11_CULL_NONE;
 			PassState.DepthStencilState.DepthEnable = true;
 			PassState.DepthStencilState.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_LESS;
+			PassState.DepthStencilState.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 			PassState.BlendState.BlendEnable = true;
 			PassState.BlendState.SrcBlend = D3D11_BLEND_SRC_ALPHA;
 			PassState.BlendState.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;

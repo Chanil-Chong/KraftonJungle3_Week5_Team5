@@ -45,7 +45,7 @@ struct FDepthStencilStateOption {
 	bool isDirty = true;	// 최초 1회 초기화 보장
 	bool DepthEnable = true;
 	D3D11_DEPTH_WRITE_MASK DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-	D3D11_COMPARISON_FUNC DepthFunc = D3D11_COMPARISON_LESS;
+	D3D11_COMPARISON_FUNC DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 	bool StencilEnable = false;
 	uint8 StencilReadMask = 0;
 	uint8 StencilWriteMask = 0;

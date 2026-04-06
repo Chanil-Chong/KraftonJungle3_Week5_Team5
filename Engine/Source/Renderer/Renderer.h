@@ -4,6 +4,7 @@
 #include "Renderer/RenderCommand.h"
 #include "Renderer/RenderStateManager.h"
 #include "Renderer/SubUVRenderer.h"
+#include "Renderer/HiZOcclusion.h"
 #include "Renderer/TextMeshBuilder.h"
 #include "ShaderManager.h"
 #include <d3d11.h>
@@ -58,12 +59,12 @@ public:
 	void OnResize(int32 NewWidth, int32 NewHeight);
 
 	/** 특정 뷰포트용 렌더 타깃을 임시로 사용하도록 설정한다. */
-	void SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, const D3D11_VIEWPORT& InViewport);
+	void SetSceneRenderTarget(ID3D11RenderTargetView* InRenderTargetView, ID3D11DepthStencilView* InDepthStencilView, ID3D11ShaderResourceView* InDepthShaderResourceView, const D3D11_VIEWPORT& InViewport);
 	/** 임시 씬 렌더 타깃 오버라이드를 해제하고 스왑체인 백버퍼로 되돌린다. */
 	void ClearSceneRenderTarget();
 
 	/** 외부 패스가 자체 RTV/DSV/뷰포트를 쓰고 싶을 때 렌더 상태를 그쪽으로 전환한다. */
-	void BeginScenePass(ID3D11RenderTargetView* InRTV, ID3D11DepthStencilView* InDSV, const D3D11_VIEWPORT& InVP);
+	void BeginScenePass(ID3D11RenderTargetView* InRTV, ID3D11DepthStencilView* InDSV, ID3D11ShaderResourceView* InDepthSRV, const D3D11_VIEWPORT& InVP);
 	/** BeginScenePass와 쌍을 이루는 종료 훅이다. 현재는 자리만 잡아둔 상태다. */
 	void EndScenePass();
 	/** 렌더 타깃을 다시 스왑체인 백버퍼로 바인딩한다. */
@@ -118,6 +119,7 @@ public:
 	ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
 	ID3D11RenderTargetView* GetRenderTargetView() const { return RenderTargetView; }
 	ID3D11DepthStencilView* GetDepthStencilView() const;
+	ID3D11ShaderResourceView* GetDepthStencilSRV() const;
 	IDXGISwapChain* GetSwapChain() const { return SwapChain; }
 	HWND GetHwnd() const { return Hwnd; }
 
@@ -125,6 +127,10 @@ public:
 	FSubUVRenderer& GetSubUVRenderer() { return SubUVRenderer; }
 	/** 현재 ViewMatrix를 역변환해 카메라 월드 위치를 반환한다. */
 	FVector GetCameraPosition() const;
+	uint32 GetHiZMipCount() const;
+	ID3D11ShaderResourceView* GetHiZMipSRV(uint32 InMipIndex) const;
+	ID3D11ShaderResourceView* GetHiZDebugPreviewSRV() const;
+	FHiZOcclusion::FDebugInfo GetHiZDebugInfo() const;
 
 	ID3D11ShaderResourceView* GetFolderIconSRV() const { return FolderIconSRV; }
 	ID3D11ShaderResourceView* GetFileIconSRV() const { return FileIconSRV; }
@@ -138,6 +144,7 @@ private:
 	bool CreateDeviceAndSwapChain(HWND InHwnd, int32 Width, int32 Height);
 	/** 현재 해상도용 백버퍼 RTV와 깊이 버퍼를 만든다. */
 	bool CreateRenderTargetAndDepthStencil(int32 Width, int32 Height);
+	void BuildHiZOcclusionForCurrentFrame();
 	/** 프레임/오브젝트/외곽선 상수 버퍼를 생성한다. */
 	bool CreateConstantBuffers();
 	/** 기본 텍스처 샘플러와 외곽선 샘플러를 생성한다. */
@@ -162,6 +169,7 @@ private:
 	std::unique_ptr<FSceneRenderer> SceneRenderer = nullptr;
 	std::unique_ptr<FPassExecutor> PassExecutor = nullptr;
 	std::unique_ptr<FObjectUniformStream> ObjectUniformStream = nullptr;
+	std::unique_ptr<FHiZOcclusion> HiZOcclusion = nullptr;
 	std::unique_ptr<FSceneRenderFrame> CurrentRenderFrame = nullptr;
 
 	HWND Hwnd = nullptr;
@@ -169,7 +177,9 @@ private:
 	ID3D11DeviceContext* DeviceContext = nullptr;
 	IDXGISwapChain* SwapChain = nullptr;
 	ID3D11RenderTargetView* RenderTargetView = nullptr;
+	ID3D11Texture2D* DepthStencilTexture = nullptr;
 	ID3D11DepthStencilView* DepthStencilView = nullptr;
+	ID3D11ShaderResourceView* DepthStencilSRV = nullptr;
 
 	ID3D11Buffer* FrameConstantBuffer = nullptr;
 	ID3D11Buffer* ObjectConstantBuffer = nullptr;
@@ -181,6 +191,7 @@ private:
 
 	ID3D11RenderTargetView* SceneRenderTargetView = nullptr;
 	ID3D11DepthStencilView* SceneDepthStencilView = nullptr;
+	ID3D11ShaderResourceView* SceneDepthStencilSRV = nullptr;
 	D3D11_VIEWPORT SceneViewport = {};
 	bool bUseSceneRenderTargetOverride = false;
 	bool bVSyncEnabled = false;
@@ -190,6 +201,7 @@ private:
 	FRenderCommandQueue PendingCommandQueue;
 	size_t PrevCommandCount = 0;
 	uint32 FrameDrawCallCount = 0;
+	uint64 FrameNumber = 0;
 
 	/** 디버그 선 렌더링을 위한 임시 CPU/GPU 버퍼다. */
 	TArray<FVertex> LineVertices;

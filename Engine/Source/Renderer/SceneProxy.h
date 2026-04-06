@@ -24,6 +24,8 @@ public:
 	virtual ~FPrimitiveSceneProxy() = default;
 
 	virtual void CollectMeshBatches(const FViewInfo& View, FRenderer& Renderer, TArray<FMeshRenderItem>& OutMeshBatches) const = 0;
+	virtual bool CanApplyCoarseOcclusion() const { return false; }
+	virtual const char* GetCoarseOcclusionDebugName() const { return "Primitive"; }
 
 	const FBoxSphereBounds& GetBounds() const { return Bounds; }
 
@@ -36,6 +38,8 @@ class ENGINE_API FStaticMeshSceneProxy : public FPrimitiveSceneProxy
 public:
 	explicit FStaticMeshSceneProxy(const UStaticMeshComponent* InComponent);
 	void CollectMeshBatches(const FViewInfo& View, FRenderer& Renderer, TArray<FMeshRenderItem>& OutMeshBatches) const override;
+	bool CanApplyCoarseOcclusion() const override { return true; }
+	const char* GetCoarseOcclusionDebugName() const override { return "StaticMesh"; }
 
 private:
 	void CollectMeshBatchesForRenderMesh(FRenderMesh* InRenderMesh, FRenderer& Renderer, TArray<FMeshRenderItem>& OutMeshBatches) const;
@@ -51,6 +55,7 @@ public:
 	explicit FTextSceneProxy(const UTextComponent* InComponent);
 	~FTextSceneProxy() override;
 	void CollectMeshBatches(const FViewInfo& View, FRenderer& Renderer, TArray<FMeshRenderItem>& OutMeshBatches) const override;
+	const char* GetCoarseOcclusionDebugName() const override { return "Text"; }
 
 private:
 	FMatrix LocalToWorld = FMatrix::Identity;
@@ -72,6 +77,7 @@ public:
 	explicit FSubUVSceneProxy(const USubUVComponent* InComponent);
 	~FSubUVSceneProxy() override;
 	void CollectMeshBatches(const FViewInfo& View, FRenderer& Renderer, TArray<FMeshRenderItem>& OutMeshBatches) const override;
+	const char* GetCoarseOcclusionDebugName() const override { return "SubUV"; }
 
 private:
 	FMatrix LocalToWorld = FMatrix::Identity;
@@ -94,6 +100,7 @@ class ENGINE_API FLineBatchSceneProxy : public FPrimitiveSceneProxy
 public:
 	explicit FLineBatchSceneProxy(const ULineBatchComponent* InComponent);
 	void CollectMeshBatches(const FViewInfo& View, FRenderer& Renderer, TArray<FMeshRenderItem>& OutMeshBatches) const override;
+	const char* GetCoarseOcclusionDebugName() const override { return "LineBatch"; }
 
 private:
 	FRenderMesh* RenderMesh = nullptr;
