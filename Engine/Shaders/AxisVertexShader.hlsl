@@ -73,6 +73,24 @@ float3 GetAxisThicknessDirection(uint AxisNo, uint Variant)
 	return (Variant == 0) ? float3(1.0f, 0.0f, 0.0f) : float3(0.0f, 1.0f, 0.0f);
 }
 
+VS_OUTPUT main(
+    float3 Position : POSITION,
+    float4 Color : COLOR,
+    float3 Normal : NORMAL,
+    float2 UV : TEXCOORD0)
+{
+	VS_OUTPUT output;
+
+	output.Pos = mul(mul(float4(Position, 1.0f), View), Projection);
+	output.WorldPos = Position;
+	output.AxisDistance = Color.y; // corners[i].Y = sideSign
+	output.AxisVisibility = Color.z;
+	output.AxisNo = (int) Color.x;
+
+	return output;
+}
+
+/*
 VS_OUTPUT main(uint id : SV_VertexID)
 {
 	VS_OUTPUT output;
@@ -114,3 +132,4 @@ VS_OUTPUT main(uint id : SV_VertexID)
 
 	return output;
 }
+*/

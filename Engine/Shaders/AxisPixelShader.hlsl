@@ -52,6 +52,7 @@ float4 main(VS_OUTPUT input) : SV_Target
 	const float maxDistance = 1000.0f;
 	const float fade = pow(saturate(1.0f - dist / maxDistance), 2.0f);
 
+	/*
 	if (input.AxisNo < 0)
 	{
 		const float3 gridAxisU = normalize(GridAxisU.xyz);
@@ -68,6 +69,16 @@ float4 main(VS_OUTPUT input) : SV_Target
 		}
 
 		return float4(float3(0.5f, 0.5f, 0.5f), lineAlpha);
+	}
+*/
+	
+	if (input.AxisNo < 0)
+	{
+		const float sideAlpha = 1.0f - smoothstep(0.0f, 1.0f, abs(input.AxisDistance));
+		const float finalAlpha = sideAlpha * fade;
+		if (finalAlpha < 0.01f)
+			discard;
+		return float4(0.5f, 0.5f, 0.5f, finalAlpha);
 	}
 
 	const float axisDerivative = max(fwidth(input.AxisDistance), 0.0001f);

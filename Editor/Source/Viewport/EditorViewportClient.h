@@ -44,6 +44,13 @@ public:
 	const FFrustum& Frustum, const FShowFlags& Flags, const FVector& CameraPosition, FRenderCommandQueue& OutQueue) override;
 	void Render(FEngine* Engine, FRenderer* Renderer);
 
+	void UpdateGridMesh(const FVector& CameraPos);
+	void AppendLineQuad(const FVector& Origin,
+		const FVector& Dir,
+		float HalfLength,
+		int32 AxisNo,
+		FVector CamPos);
+
 private:
 	FEditorUI& EditorUI;
 	mutable FGizmo Gizmo;

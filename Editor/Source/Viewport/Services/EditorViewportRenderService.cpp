@@ -130,6 +130,7 @@ void FEditorViewportRenderService::RenderAll(
 	const std::shared_ptr<FMaterial>& WireFrameMaterial,
 	FRenderMesh* GridMesh,
 	FMaterial* GridMaterial,
+	std::function<void(const FVector&)> UpdateGrid,
 	const FBuildRenderCommands& BuildRenderCommands) const
 {
 	if (!Engine || !Renderer || !EditorEngine)
@@ -227,6 +228,8 @@ void FEditorViewportRenderService::RenderAll(
 
 		if (Entry.LocalState.bShowGrid && GridMesh && GridMaterial)
 		{
+			FDynamicMesh* DynamicGridMesh = static_cast<FDynamicMesh*>(GridMesh);
+
 			FVector GridAxisU = FVector::ForwardVector;
 			FVector GridAxisV = FVector::RightVector;
 			FVector ViewForward = FVector::ForwardVector;
@@ -237,6 +240,9 @@ void FEditorViewportRenderService::RenderAll(
 			GridMaterial->SetParameterData("GridAxisU", &GridAxisU, sizeof(FVector));
 			GridMaterial->SetParameterData("GridAxisV", &GridAxisV, sizeof(FVector));
 			GridMaterial->SetParameterData("ViewForward", &ViewForward, sizeof(FVector));
+
+			UpdateGrid(CameraPosition);
+			DynamicGridMesh->UpdateVertexAndIndexBuffer(Device, Context);
 
 			FRenderCommand GridCommand;
 			GridCommand.RenderMesh = GridMesh;

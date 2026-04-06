@@ -41,6 +41,7 @@ public:
 		const std::shared_ptr<FMaterial>& WireFrameMaterial,
 		FRenderMesh* GridMesh,
 		FMaterial* GridMaterial,
+		std::function<void(const FVector&)> UpdateGrid,
 		const FBuildRenderCommands& BuildRenderCommands) const;
 	~FEditorViewportRenderService();
 
